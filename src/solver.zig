@@ -52,6 +52,7 @@ pub fn SolverWithSize(width: u32, height: u32) type {
         pub fn solve(
             self: *@This(),
         ) void {
+            const start = std.time.milliTimestamp();
             self.elapsed += self.dt;
             for (self.oscillators.items) |oscillator| {
                 var wavelength_sum: f32 = 0.0;
@@ -86,6 +87,8 @@ pub fn SolverWithSize(width: u32, height: u32) type {
             self.prev_data = self.data;
             self.data = self.tmp_data;
             self.tmp_data = tmp;
+            const elapsed = std.time.milliTimestamp() - start;
+            std.debug.print("Solving took: {}\n", .{elapsed});
         }
 
         fn compute_second_derivative(self: *@This(), x_coord: u32, y_coord: u32) f32 {
