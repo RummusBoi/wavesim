@@ -3,8 +3,8 @@ pub const c = @cImport({
     @cInclude("SDL2/SDL_ttf.h");
 });
 pub const std = @import("std");
-pub const HEIGHT = 1500;
-pub const WIDTH = 3000;
+pub const WIDTH = 1200;
+pub const HEIGHT = 800;
 pub const RENDERBUFFER_SIZE = HEIGHT * WIDTH;
 pub const Window = struct {
     win: *c.SDL_Window,
@@ -18,7 +18,7 @@ pub const Window = struct {
         _ = c.SDL_Init(c.SDL_INIT_EVERYTHING);
         _ = c.TTF_Init();
 
-        const win = c.SDL_CreateWindow("Wavesim", c.SDL_WINDOWPOS_CENTERED, c.SDL_WINDOWPOS_CENTERED, @intCast(width), @intCast(height), c.SDL_WINDOW_ALLOW_HIGHDPI) orelse sdl_panic("Creating window");
+        const win = c.SDL_CreateWindow("Wavesim", c.SDL_WINDOWPOS_CENTERED, c.SDL_WINDOWPOS_CENTERED, @intCast(width), @intCast(height), 0) orelse sdl_panic("Creating window");
 
         c.SDL_SetWindowResizable(win, 1);
         const renderer = c.SDL_CreateRenderer(win, 0, c.SDL_RENDERER_ACCELERATED) orelse sdl_panic("Creating renderer");
@@ -45,31 +45,64 @@ pub const Window = struct {
         };
     }
 
-    pub fn show_simdata(self: *Window, data: []const f32, stride: usize) !void {
-        var pixels: *[RENDERBUFFER_SIZE]u32 = undefined;
-        // for (pixels_ptrs, 0..) |_, index| {
-        //     pixels_ptrs[index] = &pixels[index * WIDTH];
-        // }
+    fn camera_to_sim_coord(self: *Window, coords: Coordinates) Coordinates {
+        const x_f: f32 = @floatFromInt(coords.x);
+        const y_f: f32 = @floatFromInt(coords.y);
 
+        const world_x: i32 = @as(i32, @intFromFloat(x_f * self.zoom_level - WIDTH * self.zoom_level / 2)) + self.window_pos.x;
+        const world_y: i32 = @as(i32, @intFromFloat(y_f * self.zoom_level - HEIGHT * self.zoom_level / 2)) + self.window_pos.y;
+
+        return Coordinates{ .x = world_x, .y = world_y };
+    }
+
+    fn sim_to_camera_coord(self: *Window, coords: Coordinates) Coordinates {
+        const x_f: f32 = @floatFromInt(coords.x);
+        const y_f: f32 = @floatFromInt(coords.y);
+
+        const camera_x = (x_f - @as(f32, @floatFromInt(self.window_pos.x)) + WIDTH * self.zoom_level / 2) / self.zoom_level;
+        const camera_y = (y_f - @as(f32, @floatFromInt(self.window_pos.y)) + HEIGHT * self.zoom_level / 2) / self.zoom_level;
+
+        return Coordinates{ .x = @intFromFloat(camera_x), .y = @intFromFloat(camera_y) };
+    }
+
+    pub fn draw_simdata(self: *Window, data: []const f32, stride: usize) !void {
+        var pixels: *[RENDERBUFFER_SIZE]u32 = undefined;
         var width: c_int = WIDTH;
         if (c.SDL_LockTexture(self.texture, null, @ptrCast(&pixels), &width) != 0) sdl_panic("Locking texture");
-        for (0..HEIGHT) |y| {
-            for (0..WIDTH) |x| {
-                const x_f: f32 = @floatFromInt(x);
-                const y_f: f32 = @floatFromInt(y);
-                const world_x: i32 = @as(i32, @intFromFloat(x_f * self.zoom_level - WIDTH * self.zoom_level / 2)) + self.window_pos.x;
-                const world_y: i32 = @as(i32, @intFromFloat(y_f * self.zoom_level - HEIGHT * self.zoom_level / 2)) + self.window_pos.y;
+        // var mode: c.SDL_DisplayMode = undefined;
+        // _ = c.SDL_GetWindowDisplayMode(self.win, &mode);
+        for (0..@intCast(HEIGHT)) |y| {
+            for (0..@intCast(WIDTH)) |x| {
+                const simdata_coords = self.camera_to_sim_coord(
+                    .{ .x = @intCast(x), .y = @intCast(y) },
+                );
+                const simval = if (simdata_coords.x > 0 and simdata_coords.x < stride and simdata_coords.y > 0 and simdata_coords.y < data.len / stride) data[@as(usize, @intCast(simdata_coords.y)) * stride + @as(usize, @intCast(simdata_coords.x))] else 0;
+                const clamped = clamp_float(simval);
 
-                const simdata_x: isize = @intFromFloat(std.math.floor(@as(f32, @floatFromInt(stride)) / @as(f32, @floatFromInt(WIDTH)) * @as(f32, @floatFromInt(world_x))));
-                const simdata_y: isize = @intFromFloat(std.math.floor(@as(f32, @floatFromInt(data.len / stride)) / @as(f32, @floatFromInt(HEIGHT)) * @as(f32, @floatFromInt(world_y))));
-                const simval = if (simdata_x > 0 and simdata_x < stride and simdata_y > 0 and simdata_y < data.len / stride) data[@as(usize, @intCast(simdata_y)) * stride + @as(usize, @intCast(simdata_x))] else 0;
-                const color: u32 = @intFromFloat(clamp_float(simval));
-                pixels[y * WIDTH + x] = (color << 24) | (color << 16) | (color << 8) | color;
+                const color: u32 = @intFromFloat(clamped);
+                const index = y * @as(usize, @intCast(WIDTH)) + x;
+                pixels[index] = (color << 24) | (color << 16) | (color << 8) | color;
             }
         }
 
         c.SDL_UnlockTexture(self.texture); // sdl_panic("Unlocking texture");
         if (c.SDL_RenderCopy(self.renderer, self.texture, null, null) != 0) sdl_panic("Copying texture");
+    }
+    pub fn draw_boundary(self: *Window, width: i32, height: i32) void {
+        if (c.SDL_SetRenderDrawColor(self.renderer, 255, 255, 255, 255) != 0) {
+            sdl_panic("Setting draw color");
+        }
+        const upper_left = self.sim_to_camera_coord(.{ .x = 0, .y = 0 });
+        const upper_right = self.sim_to_camera_coord(.{ .x = width, .y = 0 });
+        const lower_left = self.sim_to_camera_coord(.{ .x = 0, .y = height });
+        const lower_right = self.sim_to_camera_coord(.{ .x = width, .y = height });
+        _ = c.SDL_SetRenderDrawColor(self.renderer, 255, 0, 0, 255);
+        _ = c.SDL_RenderDrawLine(self.renderer, upper_left.x, upper_left.y, upper_right.x, upper_right.y);
+        _ = c.SDL_RenderDrawLine(self.renderer, upper_left.x, upper_left.y, lower_left.x, lower_left.y);
+        _ = c.SDL_RenderDrawLine(self.renderer, lower_left.x, lower_left.y, lower_right.x, lower_right.y);
+        _ = c.SDL_RenderDrawLine(self.renderer, upper_right.x, upper_right.y, lower_right.x, lower_right.y);
+    }
+    pub fn present(self: *Window) void {
         c.SDL_RenderPresent(self.renderer);
     }
 };

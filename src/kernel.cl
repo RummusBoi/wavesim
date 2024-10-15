@@ -1,66 +1,81 @@
-struct Obstacle {
-    int x;
-    int y;
-    int width;
-    int height;
-};
-
 struct Oscillator {
     int x;
     int y;
     float amplitude;
     float wavelengths[5];
+    int wavelength_count;
 };
 
-kernel void wavesim(global float* data, 
-                    global float* prev_data, 
+
+struct Coordinate {
+    int x;
+    int y;
+};
+
+kernel void wavesim(constant float* data, 
+                    constant float* prev_data, 
                     global float* tmp_data, 
                     int width, 
                     int height, 
                     float grid_spacing, 
                     float dt, 
-                    float propagation_speed, 
-                    int iteration, 
-                    global struct Obstacle* obstacles, 
-                    int obstacle_count,
-                    global struct Oscillator* oscillators,
-                    int oscillator_count
+                    float propagation_speed
     ) {
-
-    const size_t gid = get_global_id(0);
+    // const size_t lid = get_local_id(0);
+    const size_t gid = get_global_id(0) + width;
     int x = gid % width;
     int y = gid / width;
-    
-    for (int i = 0; i < obstacle_count; i++) {
-        if (x >= obstacles[i].x && x < obstacles[i].x + obstacles[i].width && y >= obstacles[i].y && y < obstacles[i].y + obstacles[i].height) {
-            tmp_data[y * width + x] = 0;
-            return;
-        }
-    }
 
-    for (int i = 0; i < oscillator_count; i++) {
-        if (x == oscillators[i].x && y == oscillators[i].y) {
-            float wavelength_sum = 0.0;
-            for (int j = 0; j < 5; j++) {
-                wavelength_sum += sin(1 / oscillators[i].wavelengths[j] * (iteration * dt) * propagation_speed * 3.14159265359);
-            }
-            tmp_data[oscillators[i].y * width + oscillators[i].x] = oscillators[i].amplitude * wavelength_sum;
-            return;
-        }
-    }
 
-    
-    float first_part = data[y * width + x - 1] + data[y * width + x + 1] + data[(y - 1) * width + x] + data[(y + 1) * width + x] - data[y * width + x] * 4.0;
-    // const first_part = (self.data[@intCast(@max(y * width + x - 1, 0))] + self.data[@intCast(@min(y * width + x + 1, width * height - 1))] + self.data[@intCast(@max((y - 1) * width + x, 0))] + self.data[@intCast(@min((y + 1) * width + x, width * height - 1))] - self.data[@intCast(y * width + x)] * 4.0);
-    float divisor = grid_spacing * grid_spacing;
-    float derivative = first_part / divisor;
-    float new_value = propagation_speed * propagation_speed * derivative * dt * dt + 2 * data[y * width + x] - prev_data[y * width + x];
-    float modifier = 0;
+    float value_to_write = 0.0;
+    float first_part = data[gid-1] + data[gid + 1] + data[gid-width] + data[gid+width] - data[gid] * 4.0; // roughly 4000
+    float divisor = grid_spacing * grid_spacing; // always 1
+    float derivative = first_part / divisor; // roughly 4000
+    float new_value = propagation_speed * propagation_speed * derivative * dt * dt + 2 * data[gid] - prev_data[gid]; 
+    //                  100 * 100 * 4000 * 0.001 * 0.001 + 2 * 1000 - 1000 = 4
+
+    float modifier = 1;
     float bound = 0.1;
-    if (x > (1 - bound) * width || x < bound * width || y > (1 - bound) * height || y < bound * height) {
-        modifier = 0.999;
-    } else {
-        modifier = 1;
+    // if ((x > (1 - bound) * width) || (x < bound * width) || (y > (1 - bound) * height) || (y < bound * height)) {
+    //     modifier = 0.90;
+    // } else {
+    //     modifier = 1;
+    // }        
+
+    value_to_write = new_value * modifier;
+    
+    tmp_data[gid] = value_to_write;
+}
+
+
+kernel void compute_oscillators(
+                    global float* tmp_data, 
+                    int width,
+                    float dt, 
+                    float propagation_speed, 
+                    int iteration, 
+                    constant struct Oscillator* oscillators) {
+    size_t gid = get_global_id(0);
+    
+    struct Oscillator this_oscillator = oscillators[gid];
+    float wavelength_sum = 0.0;
+    float value_to_write = 0.0;
+    for (int i = 0; i < this_oscillator.wavelength_count; i++) {
+        wavelength_sum += sin(1 / this_oscillator.wavelengths[i] * (iteration * dt) * propagation_speed * 3.14159265359);
     }
-    tmp_data[y * width + x] = new_value * modifier;
+    value_to_write = this_oscillator.amplitude * wavelength_sum;
+    
+    tmp_data[this_oscillator.y * width + this_oscillator.x] = value_to_write;    
+}
+
+kernel void compute_obstacles(
+                    global float* tmp_data, 
+                    int width, 
+                    int height, 
+                    constant struct Coordinate* obstacles) {
+    size_t gid = get_global_id(0);
+    struct Coordinate this_obstacle = obstacles[gid];
+    int x = this_obstacle.x;
+    int y = this_obstacle.y;
+    tmp_data[y * width + x] = 0;
 }
