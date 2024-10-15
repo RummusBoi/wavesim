@@ -14,7 +14,7 @@ pub const Window = struct {
     window_pos: Coordinates,
     zoom_level: f32,
 
-    pub fn init(width: u32, height: u32, allocator: std.mem.Allocator) !Window {
+    pub fn init(width: u32, height: u32, zoom_level: f32, allocator: std.mem.Allocator) !Window {
         _ = c.SDL_Init(c.SDL_INIT_EVERYTHING);
         _ = c.TTF_Init();
 
@@ -40,8 +40,8 @@ pub const Window = struct {
             .renderer = renderer,
             .allocator = allocator,
             .texture = texture,
-            .window_pos = Coordinates{ .x = WIDTH / 2, .y = HEIGHT / 2 },
-            .zoom_level = 1.0,
+            .window_pos = Coordinates{ .x = @intFromFloat(WIDTH / 2 * zoom_level), .y = @intFromFloat(HEIGHT / 2 * zoom_level) },
+            .zoom_level = zoom_level,
         };
     }
 
@@ -86,9 +86,29 @@ pub const Window = struct {
         }
 
         c.SDL_UnlockTexture(self.texture); // sdl_panic("Unlocking texture");
-        if (c.SDL_RenderCopy(self.renderer, self.texture, null, null) != 0) sdl_panic("Copying texture");
+
+    }
+    pub fn draw_box(self: *Window, upper_left: Coordinates, lower_right: Coordinates, r: u32, g: u32, b: u32, a: u32) void {
+        var pixels: *[RENDERBUFFER_SIZE]u32 = undefined;
+        var width: c_int = WIDTH;
+
+        if (c.SDL_LockTexture(self.texture, null, @ptrCast(&pixels), &width) != 0) sdl_panic("Locking texture");
+        // var mode: c.SDL_DisplayMode = undefined;
+        // _ = c.SDL_GetWindowDisplayMode(self.win, &mode);
+        for (@intCast(upper_left.x)..@intCast(lower_right.x)) |x| {
+            for (@intCast(upper_left.y)..@intCast(lower_right.y)) |y| {
+                const cam_coords: Coordinates = self.sim_to_camera_coord(.{ .x = @intCast(x), .y = @intCast(y) });
+                if (cam_coords.x < 0 or cam_coords.x >= WIDTH or cam_coords.y < 0 or cam_coords.y >= HEIGHT) continue;
+                const index: i32 = cam_coords.y * WIDTH + cam_coords.x;
+                const u_index: usize = @intCast(index);
+                pixels[u_index] = (a << 24) | (r << 16) | (g << 8) | b;
+            }
+        }
+
+        c.SDL_UnlockTexture(self.texture); // sdl_panic("Unlocking texture");
     }
     pub fn draw_boundary(self: *Window, width: i32, height: i32) void {
+        if (c.SDL_RenderCopy(self.renderer, self.texture, null, null) != 0) sdl_panic("Copying texture");
         if (c.SDL_SetRenderDrawColor(self.renderer, 255, 255, 255, 255) != 0) {
             sdl_panic("Setting draw color");
         }
