@@ -107,7 +107,7 @@ pub fn main() !void {
         try window.draw_simdata(try solver.read_simdata(), simwidth);
 
         for (solver.obstacles.items) |obstacle| {
-            window.draw_box(
+            window.draw_box_sim(
                 .{ .x = @intCast(obstacle.x), .y = @intCast(obstacle.y) },
                 .{ .x = @intCast(obstacle.x + obstacle.width), .y = @intCast(obstacle.y + obstacle.height) },
                 0,

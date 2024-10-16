@@ -88,7 +88,7 @@ pub const Window = struct {
         c.SDL_UnlockTexture(self.texture); // sdl_panic("Unlocking texture");
 
     }
-    pub fn draw_box(self: *Window, upper_left: Coordinates, lower_right: Coordinates, r: u32, g: u32, b: u32, a: u32) void {
+    pub fn draw_box_sim(self: *Window, upper_left: Coordinates, lower_right: Coordinates, r: u32, g: u32, b: u32, a: u32) void {
         var pixels: *[RENDERBUFFER_SIZE]u32 = undefined;
         var width: c_int = WIDTH;
 
