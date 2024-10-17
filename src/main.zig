@@ -12,30 +12,6 @@ const OpenCLSolverWithSize = @import("opencl_solver.zig").OpenCLSolverWithSize;
 const Oscillator = @import("opencl_solver.zig").Oscillator;
 const Obstacle = @import("opencl_solver.zig").Obstacle;
 
-const Coord = struct {
-    x: f32,
-    y: f32,
-};
-
-// Scale input by squaring it, but limited by 200
-// Calculate norm, scale with whatever.
-// Then scale each coordinate with the ratio of the scaled norm to the unscaled norm.
-fn scroll_scale_input(xy: Coord) Coord {
-    const norm = @min(sqrt(pow(f32, xy.x, 2) + pow(f32, xy.y, 2)), 200);
-
-    if (norm == 0) {
-        return xy;
-    }
-
-    const norm_scaled = pow(f32, norm, 1.5);
-    const norms_ratio = norm_scaled / norm;
-
-    return Coord{
-        .x = xy.x * norms_ratio,
-        .y = xy.y * norms_ratio,
-    };
-}
-
 pub fn main() !void {
     const allocator = std.heap.c_allocator;
     const simwidth = 4000;
@@ -94,11 +70,7 @@ pub fn main() !void {
     var is_holding_zoom_in = false;
     var is_holding_zoom_out = false;
     var is_holding_left_button = false;
-
-    // ---- Scroll variables -----
-    var is_scrolling = false;
-    const scroll_sensitivity = 2.0;
-    var scroll_coords = Coord{ .x = 0, .y = 0 };
+    const scroll_sensitivity = 2;
 
     while (keep_going) {
         iter += 1;
@@ -119,13 +91,6 @@ pub fn main() !void {
         }
         if (is_holding_zoom_out) {
             window.zoom_level *= 1.02;
-        }
-        if (is_scrolling) {
-            const coord_scaled = scroll_scale_input(scroll_coords);
-
-            window.window_pos.x += @intFromFloat(coord_scaled.x * scroll_sensitivity * window.zoom_level);
-            window.window_pos.y -= @intFromFloat(coord_scaled.y * scroll_sensitivity * window.zoom_level);
-            is_scrolling = false;
         }
         std.debug.print("\n\n --- Frame {} --- \n", .{iter});
         const target_frame_time: i64 = 1000 / target_fps;
@@ -187,11 +152,20 @@ pub fn main() !void {
                     }
                 },
                 c.SDL_MOUSEWHEEL => {
-                    is_scrolling = true;
-                    scroll_coords = Coord{
-                        .x = @floatFromInt(event.wheel.x),
-                        .y = @floatFromInt(event.wheel.y),
-                    };
+                    const x: f32 = @floatFromInt(event.wheel.x);
+                    const y: f32 = @floatFromInt(event.wheel.y);
+
+                    const norm = @min(sqrt(pow(f32, x, 2) + pow(f32, y, 2)), 200);
+
+                    if (norm == 0) {
+                        break;
+                    }
+
+                    const norm_scaled = pow(f32, @as(f32, norm), 1.5);
+                    const norms_ratio = norm_scaled / norm;
+
+                    window.window_pos.x += @intFromFloat(x * norms_ratio * scroll_sensitivity * window.zoom_level);
+                    window.window_pos.y -= @intFromFloat(y * norms_ratio * scroll_sensitivity * window.zoom_level);
                 },
                 c.SDL_KEYDOWN => {
                     const scancode = event.key.keysym.scancode;
