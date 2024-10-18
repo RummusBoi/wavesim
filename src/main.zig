@@ -152,8 +152,8 @@ pub fn main() !void {
                     }
                 },
                 c.SDL_MOUSEWHEEL => {
-                    const x: f32 = @floatFromInt(event.wheel.x);
-                    const y: f32 = @floatFromInt(event.wheel.y);
+                    const x = event.wheel.preciseX;
+                    const y = event.wheel.preciseY;
 
                     const norm = @min(sqrt(pow(f32, x, 2) + pow(f32, y, 2)), 200);
 
