@@ -32,7 +32,7 @@ pub fn OpenCLSolverWithSize(width: u32, height: u32) type {
             if (propagation_speed * dt > grid_spacing) {
                 return error.MaxPropagationSpeedExceeded;
             }
-            std.debug.print("Propagation speed per timestep: {}\n", .{propagation_speed * dt});
+            // std.debug.print("Propagation speed per timestep: {}\n", .{propagation_speed * dt});
             const platforms = try cl.getPlatforms(allocator);
             std.log.info("{} opencl platform(s) available", .{platforms.len});
             if (platforms.len == 0) {
@@ -162,7 +162,7 @@ pub fn OpenCLSolverWithSize(width: u32, height: u32) type {
                 iteration_count += 1;
                 self.solve();
             }
-            std.debug.print("Iterations: {}\n", .{iteration_count});
+            // std.debug.print("Iterations: {}\n", .{iteration_count});
         }
 
         pub fn solve(
@@ -304,7 +304,7 @@ pub fn OpenCLSolverWithSize(width: u32, height: u32) type {
                     break :blk self.buffer3;
                 }
             };
-            const start_read = std.time.microTimestamp();
+            // const start_read = std.time.microTimestamp();
             const read_complete = try self.queue.enqueueReadBuffer(
                 f32,
                 buffer_to_read,
@@ -316,9 +316,9 @@ pub fn OpenCLSolverWithSize(width: u32, height: u32) type {
             defer read_complete.release();
 
             try cl.waitForEvents(&.{read_complete});
-            const end_read = std.time.microTimestamp();
+            // const end_read = std.time.microTimestamp();
 
-            std.debug.print("Read time: {}\n", .{end_read - start_read});
+            // std.debug.print("Read time: {}\n", .{end_read - start_read});
             return self.data;
         }
     };

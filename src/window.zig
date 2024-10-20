@@ -2,10 +2,28 @@ pub const c = @cImport({
     @cInclude("SDL2/SDL.h");
     @cInclude("SDL2/SDL_ttf.h");
 });
+
 pub const std = @import("std");
 pub const WIDTH = 1200;
 pub const HEIGHT = 800;
 pub const RENDERBUFFER_SIZE = HEIGHT * WIDTH;
+
+const sqrt = std.math.sqrt;
+const pow = std.math.pow;
+
+const Color = struct {
+    r: u8,
+    g: u8,
+    b: u8,
+};
+
+const Locale = struct {
+    left: f32,
+    right: f32,
+    up: f32,
+    down: f32,
+};
+
 pub const Window = struct {
     win: *c.SDL_Window,
     renderer: *c.SDL_Renderer,
@@ -76,12 +94,24 @@ pub const Window = struct {
                 const simdata_coords = self.camera_to_sim_coord(
                     .{ .x = @intCast(x), .y = @intCast(y) },
                 );
-                const simval = if (simdata_coords.x > 0 and simdata_coords.x < stride and simdata_coords.y > 0 and simdata_coords.y < data.len / stride) data[@as(usize, @intCast(simdata_coords.y)) * stride + @as(usize, @intCast(simdata_coords.x))] else 0;
-                const clamped = clamp_float(simval);
 
-                const color: u32 = @intFromFloat(clamped);
+                const simval = get_simval(simdata_coords, data, stride);
+                const up = get_simval(simdata_coords, data, stride);
+                const down = get_simval(simdata_coords, data, stride);
+                const left = get_simval(simdata_coords, data, stride);
+                const right = get_simval(simdata_coords, data, stride);
+
+                const locale = Locale{
+                    .up = up,
+                    .down = down,
+                    .left = left,
+                    .right = right,
+                };
+
+                const color: u32 = @intFromFloat(map_to_color(simval, locale));
                 const index = y * @as(usize, @intCast(WIDTH)) + x;
-                pixels[index] = (color << 24) | (color << 16) | (color << 8) | color;
+
+                pixels[index] = 0 << 24 | @min((color + 80) << 16, 255 << 16) | @min((color + 150) << 8, 255 << 8) | 255;
             }
         }
 
@@ -128,7 +158,7 @@ pub const Window = struct {
 };
 
 fn sdl_panic(base_msg: []const u8) noreturn {
-    std.debug.print("SDL panic detected.\n", .{});
+    // std.debug.print("SDL panic detected.\n", .{});
     const message = c.SDL_GetError() orelse @panic("Unknown error in SDL.");
 
     var ptr: u32 = 0;
@@ -157,12 +187,91 @@ fn join_strs(s1: []const u8, s2: []const u8, buf: []u8) void {
     }
 }
 
-fn clamp_float(val: f32) f32 {
-    const v = val + 126.0;
-    if (v < 0) return 0.0;
-    if (v > 255) return 255.0;
-    return v;
+fn get_simval(simdata_coords: Coordinates, data: []const f32, stride: usize) f32 {
+    return if (simdata_coords.x > 0 and simdata_coords.x < stride and simdata_coords.y > 0 and simdata_coords.y < data.len / stride)
+        data[@as(usize, @intCast(simdata_coords.y)) * stride + @as(usize, @intCast(simdata_coords.x))]
+    else
+        0;
 }
+
+fn cross_product(v1: Vector, v2: Vector) Vector {
+    return Vector{
+        .x = v1.y * v2.z - v1.z * v2.y,
+        .y = v1.z * v2.x - v1.x * v2.z,
+        .z = v1.x * v2.y - v1.y * v2.x,
+    };
+}
+
+fn norm(v: Vector) f32 {
+    return sqrt(pow(f32, v.x, 2) + pow(f32, v.y, 2) + pow(f32, v.z, 2));
+}
+
+// In degrees.
+fn angle(v1: Vector, v2: Vector) f32 {
+    const divisor = (norm(v1) * norm(v2));
+    const res = norm(cross_product(v1, v2)) / divisor;
+    return std.math.asin(res) * (180.0 / std.math.pi);
+}
+
+// Makes the waves look blue and pretty
+fn map_to_color(val: f32, locale: Locale) f32 {
+    const q = Vector{
+        .x = 0,
+        .y = 0,
+        .z = val,
+    };
+
+    const r = Vector{
+        .x = 0,
+        .y = 1,
+        .z = locale.up - locale.down,
+    };
+
+    const s = Vector{
+        .x = 1,
+        .y = 0,
+        .z = locale.right - locale.left,
+    };
+
+    const qr = Vector{
+        .x = r.x - q.x,
+        .y = r.y - q.y,
+        .z = r.z - q.z,
+    };
+
+    const qs = Vector{
+        .x = s.x - q.x,
+        .y = s.y - q.y,
+        .z = s.z - q.z,
+    };
+
+    const normal_vector = cross_product(qr, qs);
+    const z_axis = Vector{
+        .x = 0,
+        .y = 0,
+        .z = 1,
+    };
+
+    const angle_to_z_axis = angle(normal_vector, z_axis);
+
+    // If angle is 0, then it will be light blue. Otherwise it will be gradually darker.
+    if (angle_to_z_axis < 0) {
+        return 0.0;
+    }
+    if (angle_to_z_axis > 255) {
+        return 255.0;
+    }
+    if (angle_to_z_axis > 100) {
+        return pow(f32, angle_to_z_axis, 0.5);
+    }
+    return angle_to_z_axis;
+}
+
+pub const Vector = struct {
+    x: f32,
+    y: f32,
+    z: f32,
+};
 
 pub const Coordinates = struct {
     x: i32,

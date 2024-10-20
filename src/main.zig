@@ -35,7 +35,7 @@ pub fn main() !void {
         try oscillators.append(try Oscillator.init(
             3500,
             oscillator_start + @as(u32, @intFromFloat((oscillator_end - oscillator_start) * i_f / oscillator_count_f)),
-            1000,
+            1,
             &[_]f32{
                 10,
             }, //, 1, 2 },
@@ -92,9 +92,9 @@ pub fn main() !void {
         if (is_holding_zoom_out) {
             window.zoom_level *= 1.02;
         }
-        std.debug.print("\n\n --- Frame {} --- \n", .{iter});
+        // std.debug.print("\n\n --- Frame {} --- \n", .{iter});
         const target_frame_time: i64 = 1000 / target_fps;
-        const start_solve_time = std.time.milliTimestamp();
+        // const start_solve_time = std.time.milliTimestamp();
         var solve_count: u32 = 0;
         if (!paused) {
             while (std.time.milliTimestamp() - last_frame < target_frame_time) {
@@ -104,9 +104,9 @@ pub fn main() !void {
         } else {
             c.SDL_Delay(@intCast(target_frame_time));
         }
-        const end_solve_time = std.time.milliTimestamp();
-        std.debug.print("Solve time: {}, solves: {}\n", .{ end_solve_time - start_solve_time, solve_count });
-        const start_present_time = std.time.milliTimestamp();
+        // const end_solve_time = std.time.milliTimestamp();
+        // std.debug.print("Solve time: {}, solves: {}\n", .{ end_solve_time - start_solve_time, solve_count });
+        // const start_present_time = std.time.milliTimestamp();
 
         try window.draw_simdata(try solver.read_simdata(), simwidth);
 
@@ -123,10 +123,10 @@ pub fn main() !void {
         window.draw_boundary(simwidth, simheight);
         window.present();
 
-        const end_present_time = std.time.milliTimestamp();
-        std.debug.print("Present time: {}\n", .{end_present_time - start_present_time});
-        const elapsed = std.time.milliTimestamp() - last_frame;
-        std.debug.print("TOTAL Frame time: {}\n", .{elapsed});
+        // const end_present_time = std.time.milliTimestamp();
+        // std.debug.print("Present time: {}\n", .{end_present_time - start_present_time});
+        // const elapsed = std.time.milliTimestamp() - last_frame;
+        // std.debug.print("TOTAL Frame time: {}\n", .{elapsed});
         last_frame = std.time.milliTimestamp();
         // c.SDL_Delay(100);
         while (c.SDL_PollEvent(&event) != 0) {
@@ -186,7 +186,7 @@ pub fn main() !void {
                         is_holding_down = true;
                     }
 
-                    if (event.key.keysym.sym == c.SDLK_PLUS) {
+                    if (event.key.keysym.sym == c.SDLK_PLUS or event.key.keysym.sym == c.SDLK_EQUALS) {
                         is_holding_zoom_in = true;
                     }
                     if (event.key.keysym.sym == c.SDLK_MINUS) {
@@ -214,7 +214,7 @@ pub fn main() !void {
                     if (scancode == c.SDL_SCANCODE_DOWN) {
                         is_holding_down = false;
                     }
-                    if (event.key.keysym.sym == c.SDLK_PLUS) {
+                    if (event.key.keysym.sym == c.SDLK_PLUS or event.key.keysym.sym == c.SDLK_EQUALS) {
                         is_holding_zoom_in = false;
                     }
                     if (event.key.keysym.sym == c.SDLK_MINUS) {
