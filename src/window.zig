@@ -111,7 +111,11 @@ pub const Window = struct {
                 const color: u32 = @intFromFloat(map_to_color(simval, locale));
                 const index = y * @as(usize, @intCast(WIDTH)) + x;
 
-                pixels[index] = 0 << 24 | @min((color + 80) << 16, 255 << 16) | @min((color + 150) << 8, 255 << 8) | 255;
+                const r = @min((color + 80) << 16, 255 << 16);
+                const g = @min((color + 150) << 8, 255 << 8);
+                const b = 255;
+
+                pixels[index] = 0 | r | g | b;
             }
         }
 
