@@ -65,7 +65,7 @@ pub const Window = struct {
         return Coordinates{ .x = @intFromFloat(camera_x), .y = @intFromFloat(camera_y) };
     }
 
-    pub fn draw_simdata(self: *Window, data: []const f32, stride: usize) !void {
+    pub fn draw_simdata(self: *Window, data: []const f32, stride: usize) void {
         var pixels: *[RENDERBUFFER_SIZE]u32 = undefined;
         var width: c_int = WIDTH;
         if (c.SDL_LockTexture(self.texture, null, @ptrCast(&pixels), &width) != 0) sdl_panic("Locking texture");
