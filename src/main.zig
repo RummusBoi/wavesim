@@ -9,24 +9,25 @@ const RENDERBUFFER_SIZE = @import("window.zig").RENDERBUFFER_SIZE;
 const WIDTH = @import("window.zig").WIDTH;
 const HEIGHT = @import("window.zig").HEIGHT;
 const OpenCLSolverWithSize = @import("opencl_solver.zig").OpenCLSolverWithSize;
-const Oscillator = @import("opencl_solver.zig").Oscillator;
-const Obstacle = @import("opencl_solver.zig").Obstacle;
-
+const Obstacle = @import("common.zig").Obstacle;
+const Oscillator = @import("common.zig").Oscillator;
+const width = @import("simstate.zig").width;
+const height = @import("simstate.zig").height;
+const Simstate = @import("simstate.zig").Simstate;
 pub fn main() !void {
     const allocator = std.heap.c_allocator;
-    const simwidth = 4000;
-    const simheight = 2048;
-    const zoom_level = @max(@as(f32, @floatFromInt(simwidth)) / WIDTH, @as(f32, @floatFromInt(simheight)) / HEIGHT);
+
+    const zoom_level = @max(@as(f32, @floatFromInt(width)) / WIDTH, @as(f32, @floatFromInt(height)) / HEIGHT);
     var window = try Window.init(WIDTH, HEIGHT, zoom_level, std.heap.c_allocator);
     const hole_width = 50;
-    const hole_start = simheight / 2 - hole_width / 2;
-    // const hole_end = simheight / 2 + hole_width / 2;
+    const hole_start = height / 2 - hole_width / 2;
+    // const hole_end = height / 2 + hole_width / 2;
     var obstacles: [3]Obstacle = undefined;
     obstacles[0] = Obstacle{ .x = 3000, .y = 0, .width = 50, .height = hole_start - 20 };
     obstacles[1] = Obstacle{ .x = 3000, .y = hole_start, .width = 50, .height = hole_width };
-    obstacles[2] = Obstacle{ .x = 3000, .y = hole_start + hole_width + 20, .width = 50, .height = simheight - (hole_start + hole_width + 20) };
-    const oscillator_start = simheight / 2 - hole_width / 2;
-    const oscillator_end = simheight / 2 + hole_width / 2;
+    obstacles[2] = Obstacle{ .x = 3000, .y = hole_start + hole_width + 20, .width = 50, .height = height - (hole_start + hole_width + 20) };
+    const oscillator_start = height / 2 - hole_width / 2;
+    const oscillator_end = height / 2 + hole_width / 2;
     const oscillator_count = 100;
     var oscillators = std.ArrayList(Oscillator).init(allocator);
     for (0..oscillator_count) |i| {
@@ -38,24 +39,14 @@ pub fn main() !void {
             1000,
             &[_]f32{
                 10,
-            }, //, 1, 2 },
+            },
         ));
     }
-    var solver = try OpenCLSolverWithSize(simwidth, simheight).init(0.001, 1, 100, &obstacles, oscillators.items, allocator); // Initialize the solver
-    try window.draw_simdata(solver.data, simwidth);
-    // const spacing = 20;
-
-    // solver.data[RENDERBUFFER_SIZE / 2 + WIDTH / 2 - 2 * spacing] = 100;
-    // solver.data[RENDERBUFFER_SIZE / 2 + WIDTH / 2 - spacing] = 100;
-    // solver.data[RENDERBUFFER_SIZE / 2 + WIDTH / 2 + spacing * 0] = 100;
-    // solver.data[RENDERBUFFER_SIZE / 2 + WIDTH / 2 + 1 * spacing] = 100;
-    // solver.data[RENDERBUFFER_SIZE / 2 + WIDTH / 2 + 2 * spacing] = 100;
-    // wavelength is c / f. Meaning that:
-    // for
-    //  f = 0.1: wavelength = 2 / 0.1 = 20
-    //  f = 0.5: wavelength = 2 / 0.5 = 4
-    //  f = 1: wavelength = 2 / 1 = 2
-    //  f = 2: wavelength = 2 / 2 = 1
+    var solver = try OpenCLSolverWithSize(width, height).init(0.001, 1, 100, allocator); // Initialize the solver
+    var simstate = try Simstate.init(allocator);
+    try simstate.obstacles.appendSlice(&obstacles);
+    try simstate.oscillators.appendSlice(oscillators.items);
+    solver.on_simstate_update(&simstate);
 
     var event: c.SDL_Event = undefined;
     var keep_going = true;
@@ -98,7 +89,7 @@ pub fn main() !void {
         var solve_count: u32 = 0;
         if (!paused) {
             while (std.time.milliTimestamp() - last_frame < target_frame_time) {
-                try solver.solve();
+                solver.solve();
                 solve_count += 1;
             }
         } else {
@@ -108,10 +99,10 @@ pub fn main() !void {
         std.debug.print("Solve time: {}, solves: {}\n", .{ end_solve_time - start_solve_time, solve_count });
         const start_present_time = std.time.milliTimestamp();
 
-        try window.draw_simdata(try solver.read_simdata(), simwidth);
+        window.draw_simdata(solver.read_simdata(simstate.simdata_scratch), width);
 
-        for (solver.obstacles.items) |obstacle| {
-            window.draw_box(
+        for (obstacles) |obstacle| {
+            window.draw_box_sim(
                 .{ .x = @intCast(obstacle.x), .y = @intCast(obstacle.y) },
                 .{ .x = @intCast(obstacle.x + obstacle.width), .y = @intCast(obstacle.y + obstacle.height) },
                 0,
@@ -120,7 +111,7 @@ pub fn main() !void {
                 255,
             );
         }
-        window.draw_boundary(simwidth, simheight);
+        window.draw_boundary(width, height);
         window.present();
 
         const end_present_time = std.time.milliTimestamp();
@@ -128,7 +119,6 @@ pub fn main() !void {
         const elapsed = std.time.milliTimestamp() - last_frame;
         std.debug.print("TOTAL Frame time: {}\n", .{elapsed});
         last_frame = std.time.milliTimestamp();
-        // c.SDL_Delay(100);
         while (c.SDL_PollEvent(&event) != 0) {
             switch (event.type) {
                 c.SDL_QUIT => {
@@ -193,7 +183,7 @@ pub fn main() !void {
                         is_holding_zoom_out = true;
                     }
                     if (event.key.keysym.sym == c.SDLK_r) {
-                        try solver.reset();
+                        solver.reset(simstate.simdata_scratch);
                     }
                     if (event.key.keysym.sym == c.SDLK_SPACE) {
                         paused = !paused;
