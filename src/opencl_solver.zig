@@ -179,73 +179,74 @@ pub fn OpenCLSolverWithSize(width: u32, height: u32) type {
 
         pub fn solve(
             self: *@This(),
+            iter_count: u32,
         ) void {
-            self.main_kernel.setArg(@TypeOf(self.buffer1), @rem(0 + self.iteration, 3), self.buffer1) catch @panic("Failed when setting arg.");
-            self.main_kernel.setArg(@TypeOf(self.buffer2), @rem(1 + self.iteration, 3), self.buffer2) catch @panic("Failed when setting arg."); // prev_data
-            self.main_kernel.setArg(@TypeOf(self.buffer3), @rem(2 + self.iteration, 3), self.buffer3) catch @panic("Failed when setting arg."); // tmp_data
+            const start_kernel = std.time.microTimestamp();
+            var maybe_prev_event: ?cl.Event = null;
+            for (0..iter_count) |_| {
+                self.main_kernel.setArg(@TypeOf(self.buffer1), @rem(0 + self.iteration, 3), self.buffer1) catch @panic("Failed when setting arg.");
+                self.main_kernel.setArg(@TypeOf(self.buffer2), @rem(1 + self.iteration, 3), self.buffer2) catch @panic("Failed when setting arg."); // prev_data
+                self.main_kernel.setArg(@TypeOf(self.buffer3), @rem(2 + self.iteration, 3), self.buffer3) catch @panic("Failed when setting arg."); // tmp_data
 
-            self.oscillator_kernel.setArg(@TypeOf(self.iteration), 4, self.iteration) catch @panic("Failed when setting arg.");
+                self.oscillator_kernel.setArg(@TypeOf(self.iteration), 4, self.iteration) catch @panic("Failed when setting arg.");
 
-            if (@rem(self.iteration, 3) == 0) {
-                self.oscillator_kernel.setArg(@TypeOf(self.buffer3), 0, self.buffer3) catch @panic("Failed when setting arg.");
-                self.obstacle_kernel.setArg(@TypeOf(self.buffer3), 0, self.buffer3) catch @panic("Failed when setting arg.");
-            } else if (@rem(self.iteration, 3) == 1) {
-                self.oscillator_kernel.setArg(@TypeOf(self.buffer2), 0, self.buffer2) catch @panic("Failed when setting arg.");
-                self.obstacle_kernel.setArg(@TypeOf(self.buffer2), 0, self.buffer2) catch @panic("Failed when setting arg.");
-            } else {
-                self.oscillator_kernel.setArg(@TypeOf(self.buffer1), 0, self.buffer1) catch @panic("Failed when setting arg.");
-                self.obstacle_kernel.setArg(@TypeOf(self.buffer1), 0, self.buffer1) catch @panic("Failed when setting arg.");
-            }
+                if (@rem(self.iteration, 3) == 0) {
+                    self.oscillator_kernel.setArg(@TypeOf(self.buffer3), 0, self.buffer3) catch @panic("Failed when setting arg.");
+                    self.obstacle_kernel.setArg(@TypeOf(self.buffer3), 0, self.buffer3) catch @panic("Failed when setting arg.");
+                } else if (@rem(self.iteration, 3) == 1) {
+                    self.oscillator_kernel.setArg(@TypeOf(self.buffer2), 0, self.buffer2) catch @panic("Failed when setting arg.");
+                    self.obstacle_kernel.setArg(@TypeOf(self.buffer2), 0, self.buffer2) catch @panic("Failed when setting arg.");
+                } else {
+                    self.oscillator_kernel.setArg(@TypeOf(self.buffer1), 0, self.buffer1) catch @panic("Failed when setting arg.");
+                    self.obstacle_kernel.setArg(@TypeOf(self.buffer1), 0, self.buffer1) catch @panic("Failed when setting arg.");
+                }
+                const main_kernel_event = self.queue.enqueueNDRangeKernel(
+                    self.main_kernel,
+                    null,
+                    &.{width * height - 2 * width},
+                    null,
+                    if (maybe_prev_event) |prev_event| &.{prev_event} else &.{},
+                ) catch @panic("Failed to enqueue main kernel");
+                maybe_prev_event = main_kernel_event;
+                //defer main_kernel_event.release();
 
-            const start_queuing = std.time.microTimestamp();
-            const main_kernel_event = self.queue.enqueueNDRangeKernel(
-                self.main_kernel,
-                null,
-                &.{width * height - 2 * width},
-                null,
-                &.{},
-            ) catch @panic("Failed to enqueue main kernel");
-
-            const start_waiting = std.time.microTimestamp();
-            var obstacle_kernel_event: ?cl.Event = null;
-            var oscillator_kernel_event: ?cl.Event = null;
-            if (self.obstacle_pixel_count > 0) {
-                obstacle_kernel_event = self.queue.enqueueNDRangeKernel(
-                    self.obstacle_kernel,
-                    null,
-                    &.{self.obstacle_pixel_count},
-                    null,
-                    &.{main_kernel_event},
-                ) catch @panic("Failed to enqueue obstacle kernel");
+                var obstacle_kernel_event: ?cl.Event = null;
+                var oscillator_kernel_event: ?cl.Event = null;
+                if (self.obstacle_pixel_count > 0) {
+                    obstacle_kernel_event = self.queue.enqueueNDRangeKernel(
+                        self.obstacle_kernel,
+                        null,
+                        &.{self.obstacle_pixel_count},
+                        null,
+                        &.{main_kernel_event},
+                    ) catch @panic("Failed to enqueue obstacle kernel");
+                    //defer obstacle_kernel_event.?.release();
+                    maybe_prev_event = obstacle_kernel_event;
+                }
+                if (self.oscillator_count > 0) {
+                    const wait_event = if (obstacle_kernel_event) |obs_event| obs_event else main_kernel_event;
+                    oscillator_kernel_event = self.queue.enqueueNDRangeKernel(
+                        self.oscillator_kernel,
+                        null,
+                        &.{self.oscillator_count},
+                        null,
+                        &.{wait_event},
+                    ) catch @panic("Failed to enqueue oscillator kernel");
+                    //defer oscillator_kernel_event.?.release();
+                    maybe_prev_event = oscillator_kernel_event;
+                }
+                self.elapsed += self.dt;
+                self.iteration += 1;
             }
-            if (self.oscillator_count > 0) {
-                const wait_event = if (obstacle_kernel_event) |obs_event| obs_event else main_kernel_event;
-                oscillator_kernel_event = self.queue.enqueueNDRangeKernel(
-                    self.oscillator_kernel,
-                    null,
-                    &.{self.oscillator_count},
-                    null,
-                    &.{wait_event},
-                ) catch @panic("Failed to enqueue oscillator kernel");
-            }
-            if (obstacle_kernel_event) |event| {
-                defer event.release();
-                cl.waitForEvents(&.{event}) catch @panic("Failed to wait for kernels");
-            }
-            if (oscillator_kernel_event) |event| {
-                defer event.release();
-                cl.waitForEvents(&.{event}) catch @panic("Failed to wait for kernels");
-            }
+            cl.waitForEvents(if (maybe_prev_event) |prev_event| &.{prev_event} else &.{}) catch @panic("Failed to wait for events");
             const end_kernel = std.time.microTimestamp();
 
             // std.debug.print("Kernel time: {}\n", .{end_kernel - start_kernel});
-            self.total_kernel_time += end_kernel - start_queuing;
-            self.total_waiting_time += end_kernel - start_waiting;
+            // std.debug.print("Kernel time per call: {}\n", .{@divTrunc(end_kernel - start_kernel, iter_count)});
+            self.total_kernel_time += end_kernel - start_kernel;
             // std.debug.print("Average kernel time: {} ({} per task)\n", .{ @divFloor(self.total_kernel_time, self.iteration + 1), @divFloor(@divFloor(self.total_kernel_time, self.iteration + 1), 1) });
             // std.debug.print("Average waiting time: {}\n", .{@divFloor(self.total_waiting_time, self.iteration + 1)});
 
-            self.elapsed += self.dt;
-            self.iteration += 1;
         }
 
         pub fn reset(self: *@This(), buf: *[width * height]f32) void {
