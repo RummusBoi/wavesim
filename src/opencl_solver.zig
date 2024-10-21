@@ -2,8 +2,8 @@ const std = @import("std");
 const zig_opencl = @import("zig_opencl");
 const cl = @import("zig_opencl");
 const kernel_source = @embedFile("kernel.cl");
-const Oscillator = @import("simstate.zig").Oscillator;
-const Obstacle = @import("simstate.zig").Obstacle;
+const Oscillator = @import("common.zig").Oscillator;
+const Obstacle = @import("common.zig").Obstacle;
 const Coordinate = @import("common.zig").Coordinate;
 const Simstate = @import("simstate.zig").Simstate;
 

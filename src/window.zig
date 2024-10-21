@@ -3,15 +3,17 @@ pub const c = @cImport({
     @cInclude("SDL2/SDL_ttf.h");
 });
 pub const std = @import("std");
+const Coordinate = @import("common.zig").Coordinate;
 pub const WIDTH = 1200;
 pub const HEIGHT = 800;
 pub const RENDERBUFFER_SIZE = HEIGHT * WIDTH;
+
 pub const Window = struct {
     win: *c.SDL_Window,
     renderer: *c.SDL_Renderer,
     allocator: std.mem.Allocator,
     texture: *c.SDL_Texture,
-    window_pos: Coordinates,
+    window_pos: Coordinate,
     zoom_level: f32,
 
     pub fn init(width: u32, height: u32, zoom_level: f32, allocator: std.mem.Allocator) !Window {
@@ -40,29 +42,29 @@ pub const Window = struct {
             .renderer = renderer,
             .allocator = allocator,
             .texture = texture,
-            .window_pos = Coordinates{ .x = @intFromFloat(WIDTH / 2 * zoom_level), .y = @intFromFloat(HEIGHT / 2 * zoom_level) },
+            .window_pos = Coordinate{ .x = @intFromFloat(WIDTH / 2 * zoom_level), .y = @intFromFloat(HEIGHT / 2 * zoom_level) },
             .zoom_level = zoom_level,
         };
     }
 
-    fn camera_to_sim_coord(self: *Window, coords: Coordinates) Coordinates {
+    fn camera_to_sim_coord(self: *Window, coords: Coordinate) Coordinate {
         const x_f: f32 = @floatFromInt(coords.x);
         const y_f: f32 = @floatFromInt(coords.y);
 
         const world_x: i32 = @as(i32, @intFromFloat(x_f * self.zoom_level - WIDTH * self.zoom_level / 2)) + self.window_pos.x;
         const world_y: i32 = @as(i32, @intFromFloat(y_f * self.zoom_level - HEIGHT * self.zoom_level / 2)) + self.window_pos.y;
 
-        return Coordinates{ .x = world_x, .y = world_y };
+        return Coordinate{ .x = world_x, .y = world_y };
     }
 
-    fn sim_to_camera_coord(self: *Window, coords: Coordinates) Coordinates {
+    fn sim_to_camera_coord(self: *Window, coords: Coordinate) Coordinate {
         const x_f: f32 = @floatFromInt(coords.x);
         const y_f: f32 = @floatFromInt(coords.y);
 
         const camera_x = (x_f - @as(f32, @floatFromInt(self.window_pos.x)) + WIDTH * self.zoom_level / 2) / self.zoom_level;
         const camera_y = (y_f - @as(f32, @floatFromInt(self.window_pos.y)) + HEIGHT * self.zoom_level / 2) / self.zoom_level;
 
-        return Coordinates{ .x = @intFromFloat(camera_x), .y = @intFromFloat(camera_y) };
+        return Coordinate{ .x = @intFromFloat(camera_x), .y = @intFromFloat(camera_y) };
     }
 
     pub fn draw_simdata(self: *Window, data: []const f32, stride: usize) void {
@@ -88,7 +90,7 @@ pub const Window = struct {
         c.SDL_UnlockTexture(self.texture); // sdl_panic("Unlocking texture");
 
     }
-    pub fn draw_box_sim(self: *Window, upper_left: Coordinates, lower_right: Coordinates, r: u32, g: u32, b: u32, a: u32) void {
+    pub fn draw_box_sim(self: *Window, upper_left: Coordinate, lower_right: Coordinate, r: u32, g: u32, b: u32, a: u32) void {
         var pixels: *[RENDERBUFFER_SIZE]u32 = undefined;
         var width: c_int = WIDTH;
 
@@ -97,7 +99,7 @@ pub const Window = struct {
         // _ = c.SDL_GetWindowDisplayMode(self.win, &mode);
         for (@intCast(upper_left.x)..@intCast(lower_right.x)) |x| {
             for (@intCast(upper_left.y)..@intCast(lower_right.y)) |y| {
-                const cam_coords: Coordinates = self.sim_to_camera_coord(.{ .x = @intCast(x), .y = @intCast(y) });
+                const cam_coords: Coordinate = self.sim_to_camera_coord(.{ .x = @intCast(x), .y = @intCast(y) });
                 if (cam_coords.x < 0 or cam_coords.x >= WIDTH or cam_coords.y < 0 or cam_coords.y >= HEIGHT) continue;
                 const index: i32 = cam_coords.y * WIDTH + cam_coords.x;
                 const u_index: usize = @intCast(index);
@@ -163,8 +165,3 @@ fn clamp_float(val: f32) f32 {
     if (v > 255) return 255.0;
     return v;
 }
-
-pub const Coordinates = struct {
-    x: i32,
-    y: i32,
-};
