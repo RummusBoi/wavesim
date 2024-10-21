@@ -51,7 +51,11 @@ pub fn main() !void {
     var event: c.SDL_Event = undefined;
     var keep_going = true;
     var iter: u32 = 0;
-    const target_fps = 60;
+    const target_fps = 24;
+    const ui_movement_scalor = 60 / target_fps;
+    const estimated_solve_time: comptime_float = 0.6; // amortized solve time
+    const estimated_present_time: comptime_float = 6; // amortized present time
+    const solves_per_frame: comptime_int = @intFromFloat(@as(comptime_float, (1000 / target_fps - estimated_present_time)) / estimated_solve_time); // sub 1 ms, as it takes roughly 1ms to show results
     var last_frame = std.time.milliTimestamp();
     var paused = false;
     var is_holding_up = false;
@@ -66,37 +70,41 @@ pub fn main() !void {
     while (keep_going) {
         iter += 1;
         if (is_holding_up) {
-            window.window_pos.y -= @intFromFloat(10 * window.zoom_level);
+            window.window_pos.y -= @intFromFloat(10 * window.zoom_level * ui_movement_scalor);
         }
         if (is_holding_down) {
-            window.window_pos.y += @intFromFloat(10 * window.zoom_level);
+            window.window_pos.y += @intFromFloat(10 * window.zoom_level * ui_movement_scalor);
         }
         if (is_holding_left) {
-            window.window_pos.x -= @intFromFloat(10 * window.zoom_level);
+            window.window_pos.x -= @intFromFloat(10 * window.zoom_level * ui_movement_scalor);
         }
         if (is_holding_right) {
-            window.window_pos.x += @intFromFloat(10 * window.zoom_level);
+            window.window_pos.x += @intFromFloat(10 * window.zoom_level * ui_movement_scalor);
         }
         if (is_holding_zoom_in) {
-            window.zoom_level *= 0.98;
+            window.zoom_level *= 1 - (0.02 * ui_movement_scalor);
         }
         if (is_holding_zoom_out) {
-            window.zoom_level *= 1.02;
+            window.zoom_level *= 1 + (0.02 * ui_movement_scalor);
         }
         std.debug.print("\n\n --- Frame {} --- \n", .{iter});
         const target_frame_time: i64 = 1000 / target_fps;
         const start_solve_time = std.time.milliTimestamp();
         var solve_count: u32 = 0;
+        var sleep_time: i64 = 0;
         if (!paused) {
-            while (std.time.milliTimestamp() - last_frame < target_frame_time) {
-                solver.solve();
-                solve_count += 1;
-            }
+            // while (std.time.milliTimestamp() - last_frame < target_frame_time) {
+            solver.solve(solves_per_frame);
+            solve_count += solves_per_frame;
+            // std.debug.print("Delaying by: {}\n", .{target_frame_time - (std.time.milliTimestamp() - start_solve_time)});
+            sleep_time = @intCast(@max(target_frame_time - @as(i64, estimated_present_time) - (std.time.milliTimestamp() - start_solve_time), 0));
+            // }
         } else {
-            c.SDL_Delay(@intCast(target_frame_time));
+            sleep_time = target_frame_time - @as(i64, estimated_present_time);
         }
+        c.SDL_Delay(@intCast(sleep_time));
         const end_solve_time = std.time.milliTimestamp();
-        std.debug.print("Solve time: {}, solves: {}\n", .{ end_solve_time - start_solve_time, solve_count });
+        std.debug.print("Solve time: {}, sleep time: {}, solves: {}, solves / sec: {}\n", .{ end_solve_time - start_solve_time - sleep_time, sleep_time, solve_count, solve_count * target_fps });
         const start_present_time = std.time.milliTimestamp();
 
         window.draw_simdata(solver.read_simdata(simstate.simdata_scratch), width);
