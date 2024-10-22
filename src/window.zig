@@ -217,7 +217,10 @@ fn angle(v1: Vector, v2: Vector) f32 {
     return std.math.asin(res) * (180.0 / std.math.pi);
 }
 
-// Makes the waves look blue and pretty
+// Returns the angle of the normal vector to the z axis, with a few conditions:
+// - Returns 0 or 255 if angle < 0 or angle > 255.
+// - Returns sqrt(angle) if angle > 100.
+// - Else, returns angle.
 fn map_to_color(val: f32, locale: Locale) f32 {
     const q = Vector{
         .x = 0,
@@ -258,7 +261,7 @@ fn map_to_color(val: f32, locale: Locale) f32 {
 
     const angle_to_z_axis = angle(normal_vector, z_axis);
 
-    // If angle is 0, then it will be light blue. Otherwise it will be gradually darker.
+    // If angle is 0, then it will be blue. Otherwise it will be gradually lighter.
     if (angle_to_z_axis < 0) {
         return 0.0;
     }
