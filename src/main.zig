@@ -1,5 +1,8 @@
 const std = @import("std");
 
+const sqrt = std.math.sqrt;
+const pow = std.math.pow;
+
 const Window = @import("window.zig").Window;
 const c = @import("window.zig").c;
 const RENDERBUFFER_SIZE = @import("window.zig").RENDERBUFFER_SIZE;
@@ -44,7 +47,7 @@ pub fn main() !void {
     try simstate.obstacles.appendSlice(&obstacles);
     try simstate.oscillators.appendSlice(oscillators.items);
     solver.on_simstate_update(&simstate);
-
+    const scroll_sensitivity = 2;
     var event: c.SDL_Event = undefined;
     var keep_going = true;
     var iter: u32 = 0;
@@ -145,6 +148,22 @@ pub fn main() !void {
                         window.window_pos.x -= @intFromFloat(@as(f32, @floatFromInt(event.motion.xrel)) * window.zoom_level);
                         window.window_pos.y -= @intFromFloat(@as(f32, @floatFromInt(event.motion.yrel)) * window.zoom_level);
                     }
+                },
+                c.SDL_MOUSEWHEEL => {
+                    const x = event.wheel.preciseX;
+                    const y = event.wheel.preciseY;
+
+                    const norm = @min(sqrt(pow(f32, x, 2) + pow(f32, y, 2)), 200);
+
+                    if (norm == 0) {
+                        break;
+                    }
+
+                    const norm_scaled = pow(f32, @as(f32, norm), 1.5);
+                    const norms_ratio = norm_scaled / norm;
+
+                    window.window_pos.x += @intFromFloat(x * norms_ratio * scroll_sensitivity * window.zoom_level);
+                    window.window_pos.y -= @intFromFloat(y * norms_ratio * scroll_sensitivity * window.zoom_level);
                 },
                 c.SDL_KEYDOWN => {
                     const scancode = event.key.keysym.scancode;
