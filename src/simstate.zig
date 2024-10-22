@@ -13,19 +13,23 @@ pub fn SimStateWithSize(simwidth: u32, simheight: u32) type {
         obstacles: std.ArrayList(Obstacle),
         oscillators: std.ArrayList(Oscillator),
         scratch_buffer: *[simwidth * simheight * 8]u8,
-        obstacle_scratch: *[simwidth * simheight]Coordinate,
-        simdata_scratch: *[simwidth * simheight]f32,
+
+        pub fn alloc_scratch(self: *@This(), t: type, len: comptime_int) *[len]t {
+            const buf_size = self.scratch_buffer.len * @sizeOf(u8);
+            const size = @sizeOf(t);
+            if (size * len > buf_size) {
+                @compileError("Buffer too small");
+            }
+            const result: *[len]t = @alignCast(@ptrCast(self.scratch_buffer));
+            return result;
+        }
 
         pub fn init(allocator: std.mem.Allocator) !@This() {
             const buf: *[width * height * 8]u8 = @ptrCast(try allocator.alloc(u8, simwidth * simheight * 8));
-            const obstacle_scratch: *[simwidth * simheight]Coordinate = @alignCast(@ptrCast(buf));
-            const simdata_scratch: *[simwidth * simheight]f32 = @alignCast(@ptrCast(buf));
             return @This(){
                 .obstacles = std.ArrayList(Obstacle).init(allocator),
                 .oscillators = std.ArrayList(Oscillator).init(allocator),
                 .scratch_buffer = buf,
-                .obstacle_scratch = obstacle_scratch,
-                .simdata_scratch = simdata_scratch,
             };
         }
     };

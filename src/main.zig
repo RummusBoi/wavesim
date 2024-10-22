@@ -48,7 +48,7 @@ pub fn main() !void {
     var event: c.SDL_Event = undefined;
     var keep_going = true;
     var iter: u32 = 0;
-    const target_fps = 24;
+    const target_fps = 60;
     const ui_movement_scalor = 60 / target_fps;
     const estimated_solve_time: comptime_float = 0.6; // amortized solve time
     const estimated_present_time: comptime_float = 6; // amortized present time
@@ -62,6 +62,7 @@ pub fn main() !void {
     var is_holding_zoom_in = false;
     var is_holding_zoom_out = false;
     var is_holding_left_button = false;
+    const simdata_scratch = simstate.alloc_scratch(f32, width * height);
 
     while (keep_going) {
         iter += 1;
@@ -103,7 +104,7 @@ pub fn main() !void {
         std.debug.print("Solve time: {}, sleep time: {}, solves: {}, solves / sec: {}\n", .{ end_solve_time - start_solve_time - sleep_time, sleep_time, solve_count, solve_count * target_fps });
         const start_present_time = std.time.milliTimestamp();
 
-        window.draw_simdata(solver.read_simdata(simstate.simdata_scratch), width);
+        window.draw_simdata(solver.read_simdata(simdata_scratch), width);
 
         for (obstacles) |obstacle| {
             window.draw_box_sim(
@@ -171,7 +172,7 @@ pub fn main() !void {
                         is_holding_zoom_out = true;
                     }
                     if (event.key.keysym.sym == c.SDLK_r) {
-                        solver.reset(simstate.simdata_scratch);
+                        solver.reset(simdata_scratch);
                     }
                     if (event.key.keysym.sym == c.SDLK_SPACE) {
                         paused = !paused;
