@@ -110,16 +110,27 @@ pub fn main() !void {
         window.draw_simdata(solver.read_simdata(simdata_scratch), width);
 
         for (obstacles) |obstacle| {
-            window.draw_box_sim(
-                .{ .x = @intCast(obstacle.x), .y = @intCast(obstacle.y) },
-                .{ .x = @intCast(obstacle.x + obstacle.width), .y = @intCast(obstacle.y + obstacle.height) },
+            const upper_left = window.sim_to_camera_coord(.{ .x = @intCast(obstacle.x), .y = @intCast(obstacle.y) });
+            const lower_right = window.sim_to_camera_coord(.{ .x = @intCast(obstacle.x + obstacle.width), .y = @intCast(obstacle.y + obstacle.height) });
+            window.draw_filled_box(
+                .{ .x = @intCast(upper_left.x), .y = @intCast(upper_left.y) },
+                .{ .x = @intCast(lower_right.x), .y = @intCast(lower_right.y) },
                 0,
                 0,
                 0,
                 255,
             );
         }
-        window.draw_boundary(width, height);
+        const boundary_upper_left = window.sim_to_camera_coord(.{ .x = 0, .y = 0 });
+        const boundary_lower_right = window.sim_to_camera_coord(.{ .x = @intCast(width), .y = @intCast(height) });
+        window.draw_box(
+            .{ .x = boundary_upper_left.x, .y = boundary_upper_left.y },
+            .{ .x = boundary_lower_right.x, .y = boundary_lower_right.y },
+            255,
+            0,
+            0,
+            255,
+        );
         window.present();
 
         const end_present_time = std.time.milliTimestamp();

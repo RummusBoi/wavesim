@@ -2,6 +2,13 @@ const std = @import("std");
 pub const Coordinate = struct {
     x: i32,
     y: i32,
+
+    pub fn clamp(self: Coordinate, min_x: i32, max_x: i32, min_y: i32, max_y: i32) Coordinate {
+        return Coordinate{
+            .x = @min(@max(self.x, min_x), max_x),
+            .y = @min(@max(self.y, min_y), max_y),
+        };
+    }
 };
 
 pub const Obstacle = struct {

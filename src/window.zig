@@ -47,7 +47,7 @@ pub const Window = struct {
         };
     }
 
-    fn camera_to_sim_coord(self: *Window, coords: Coordinate) Coordinate {
+    pub fn camera_to_sim_coord(self: *Window, coords: Coordinate) Coordinate {
         const x_f: f32 = @floatFromInt(coords.x);
         const y_f: f32 = @floatFromInt(coords.y);
 
@@ -57,7 +57,7 @@ pub const Window = struct {
         return Coordinate{ .x = world_x, .y = world_y };
     }
 
-    fn sim_to_camera_coord(self: *Window, coords: Coordinate) Coordinate {
+    pub fn sim_to_camera_coord(self: *Window, coords: Coordinate) Coordinate {
         const x_f: f32 = @floatFromInt(coords.x);
         const y_f: f32 = @floatFromInt(coords.y);
 
@@ -71,8 +71,6 @@ pub const Window = struct {
         var pixels: *[RENDERBUFFER_SIZE]u32 = undefined;
         var width: c_int = WIDTH;
         if (c.SDL_LockTexture(self.texture, null, @ptrCast(&pixels), &width) != 0) sdl_panic("Locking texture");
-        // var mode: c.SDL_DisplayMode = undefined;
-        // _ = c.SDL_GetWindowDisplayMode(self.win, &mode);
         for (0..@intCast(HEIGHT)) |y| {
             for (0..@intCast(WIDTH)) |x| {
                 const simdata_coords = self.camera_to_sim_coord(
@@ -87,44 +85,77 @@ pub const Window = struct {
             }
         }
 
-        c.SDL_UnlockTexture(self.texture); // sdl_panic("Unlocking texture");
-
+        c.SDL_UnlockTexture(self.texture);
     }
-    pub fn draw_box_sim(self: *Window, upper_left: Coordinate, lower_right: Coordinate, r: u32, g: u32, b: u32, a: u32) void {
+    pub fn draw_filled_box(self: *Window, upper_left: Coordinate, lower_right: Coordinate, r: u32, g: u32, b: u32, a: u32) void {
         var pixels: *[RENDERBUFFER_SIZE]u32 = undefined;
         var width: c_int = WIDTH;
+        const u_left_clamped = upper_left.clamp(0, WIDTH, 0, HEIGHT);
+        const l_right_clamped = lower_right.clamp(0, WIDTH, 0, HEIGHT);
 
         if (c.SDL_LockTexture(self.texture, null, @ptrCast(&pixels), &width) != 0) sdl_panic("Locking texture");
-        // var mode: c.SDL_DisplayMode = undefined;
-        // _ = c.SDL_GetWindowDisplayMode(self.win, &mode);
-        for (@intCast(upper_left.x)..@intCast(lower_right.x)) |x| {
-            for (@intCast(upper_left.y)..@intCast(lower_right.y)) |y| {
-                const cam_coords: Coordinate = self.sim_to_camera_coord(.{ .x = @intCast(x), .y = @intCast(y) });
-                if (cam_coords.x < 0 or cam_coords.x >= WIDTH or cam_coords.y < 0 or cam_coords.y >= HEIGHT) continue;
-                const index: i32 = cam_coords.y * WIDTH + cam_coords.x;
+        for (@intCast(u_left_clamped.x)..@intCast(l_right_clamped.x)) |x| {
+            for (@intCast(u_left_clamped.y)..@intCast(l_right_clamped.y)) |y| {
+                const index: i32 = @intCast(y * WIDTH + x);
                 const u_index: usize = @intCast(index);
                 pixels[u_index] = (a << 24) | (r << 16) | (g << 8) | b;
             }
         }
 
-        c.SDL_UnlockTexture(self.texture); // sdl_panic("Unlocking texture");
+        c.SDL_UnlockTexture(self.texture);
     }
-    pub fn draw_boundary(self: *Window, width: i32, height: i32) void {
-        if (c.SDL_RenderCopy(self.renderer, self.texture, null, null) != 0) sdl_panic("Copying texture");
-        if (c.SDL_SetRenderDrawColor(self.renderer, 255, 255, 255, 255) != 0) {
-            sdl_panic("Setting draw color");
+    pub fn draw_box(self: *Window, upper_left: Coordinate, lower_right: Coordinate, r: u32, g: u32, b: u32, a: u32) void {
+        var pixels: *[RENDERBUFFER_SIZE]u32 = undefined;
+        var width: c_int = WIDTH;
+
+        if (c.SDL_LockTexture(self.texture, null, @ptrCast(&pixels), &width) != 0) sdl_panic("Locking texture");
+        var x: i32 = upper_left.x;
+        var y: i32 = upper_left.y;
+        while (x <= lower_right.x) : (x += 1) {
+            y = @intCast(upper_left.y);
+            if (x < 0 or x >= WIDTH) continue;
+            if (y < 0 or y >= HEIGHT) continue;
+
+            const index: i32 = @intCast(y * WIDTH + x);
+            const u_index: usize = @intCast(index);
+
+            pixels[u_index] = (a << 24) | (r << 16) | (g << 8) | b;
         }
-        const upper_left = self.sim_to_camera_coord(.{ .x = 0, .y = 0 });
-        const upper_right = self.sim_to_camera_coord(.{ .x = width, .y = 0 });
-        const lower_left = self.sim_to_camera_coord(.{ .x = 0, .y = height });
-        const lower_right = self.sim_to_camera_coord(.{ .x = width, .y = height });
-        _ = c.SDL_SetRenderDrawColor(self.renderer, 255, 0, 0, 255);
-        _ = c.SDL_RenderDrawLine(self.renderer, upper_left.x, upper_left.y, upper_right.x, upper_right.y);
-        _ = c.SDL_RenderDrawLine(self.renderer, upper_left.x, upper_left.y, lower_left.x, lower_left.y);
-        _ = c.SDL_RenderDrawLine(self.renderer, lower_left.x, lower_left.y, lower_right.x, lower_right.y);
-        _ = c.SDL_RenderDrawLine(self.renderer, upper_right.x, upper_right.y, lower_right.x, lower_right.y);
+        x = upper_left.x;
+        while (x <= lower_right.x) : (x += 1) {
+            y = @intCast(lower_right.y);
+            if (x < 0 or x >= WIDTH) continue;
+            if (y < 0 or y >= HEIGHT) continue;
+
+            const index: i32 = @intCast(y * WIDTH + x);
+            const u_index: usize = @intCast(index);
+            pixels[u_index] = (a << 24) | (r << 16) | (g << 8) | b;
+        }
+        y = upper_left.y;
+        while (y <= lower_right.y) : (y += 1) {
+            x = @intCast(upper_left.x);
+            if (x < 0 or x >= WIDTH) continue;
+            if (y < 0 or y >= HEIGHT) continue;
+
+            const index: i32 = @intCast(y * WIDTH + x);
+            const u_index: usize = @intCast(index);
+            pixels[u_index] = (a << 24) | (r << 16) | (g << 8) | b;
+        }
+        y = upper_left.y;
+        while (y <= lower_right.y) : (y += 1) {
+            x = @intCast(lower_right.x);
+            if (x < 0 or x >= WIDTH) continue;
+            if (y < 0 or y >= HEIGHT) continue;
+
+            const index: i32 = @intCast(y * WIDTH + x);
+            const u_index: usize = @intCast(index);
+            pixels[u_index] = (a << 24) | (r << 16) | (g << 8) | b;
+        }
+
+        c.SDL_UnlockTexture(self.texture);
     }
     pub fn present(self: *Window) void {
+        if (c.SDL_RenderCopy(self.renderer, self.texture, null, null) != 0) sdl_panic("Copying texture to renderer");
         c.SDL_RenderPresent(self.renderer);
     }
 };
