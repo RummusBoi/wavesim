@@ -6,6 +6,7 @@ const Oscillator = @import("common.zig").Oscillator;
 const Obstacle = @import("common.zig").Obstacle;
 const Coordinate = @import("common.zig").Coordinate;
 const Simstate = @import("simstate.zig").Simstate;
+const alloc_scratch = @import("simstate.zig").alloc_scratch;
 
 pub fn OpenCLSolverWithSize(width: u32, height: u32) type {
     _ = zig_opencl;
@@ -130,7 +131,7 @@ pub fn OpenCLSolverWithSize(width: u32, height: u32) type {
         }
 
         pub fn on_simstate_update(self: *@This(), simstate: *Simstate) void {
-            var obstacle_bfr: *[width * height]Coordinate = @alignCast(@ptrCast(simstate.scratch_buffer));
+            var obstacle_bfr: *[width * height]Coordinate = simstate.alloc_scratch(Coordinate, width * height);
             var total_pixel_count: u32 = 0;
             for (simstate.obstacles.items) |obstacle| {
                 for (obstacle.y..obstacle.y + obstacle.height) |y| {
