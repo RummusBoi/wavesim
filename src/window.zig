@@ -13,10 +13,8 @@ pub const Window = struct {
     renderer: *c.SDL_Renderer,
     allocator: std.mem.Allocator,
     texture: *c.SDL_Texture,
-    window_pos: Coordinate,
-    zoom_level: f32,
 
-    pub fn init(width: u32, height: u32, zoom_level: f32, allocator: std.mem.Allocator) !Window {
+    pub fn init(width: u32, height: u32, allocator: std.mem.Allocator) !Window {
         _ = c.SDL_Init(c.SDL_INIT_EVERYTHING);
         _ = c.TTF_Init();
 
@@ -42,38 +40,21 @@ pub const Window = struct {
             .renderer = renderer,
             .allocator = allocator,
             .texture = texture,
-            .window_pos = Coordinate{ .x = @intFromFloat(WIDTH / 2 * zoom_level), .y = @intFromFloat(HEIGHT / 2 * zoom_level) },
-            .zoom_level = zoom_level,
+            // .window_pos = Coordinate{ .x = @intFromFloat(WIDTH / 2 * zoom_level), .y = @intFromFloat(HEIGHT / 2 * zoom_level) },
+            // .zoom_level = zoom_level,
         };
     }
 
-    pub fn camera_to_sim_coord(self: *Window, coords: Coordinate) Coordinate {
-        const x_f: f32 = @floatFromInt(coords.x);
-        const y_f: f32 = @floatFromInt(coords.y);
-
-        const world_x: i32 = @as(i32, @intFromFloat(x_f * self.zoom_level - WIDTH * self.zoom_level / 2)) + self.window_pos.x;
-        const world_y: i32 = @as(i32, @intFromFloat(y_f * self.zoom_level - HEIGHT * self.zoom_level / 2)) + self.window_pos.y;
-
-        return Coordinate{ .x = world_x, .y = world_y };
-    }
-
-    pub fn sim_to_camera_coord(self: *Window, coords: Coordinate) Coordinate {
-        const x_f: f32 = @floatFromInt(coords.x);
-        const y_f: f32 = @floatFromInt(coords.y);
-
-        const camera_x = (x_f - @as(f32, @floatFromInt(self.window_pos.x)) + WIDTH * self.zoom_level / 2) / self.zoom_level;
-        const camera_y = (y_f - @as(f32, @floatFromInt(self.window_pos.y)) + HEIGHT * self.zoom_level / 2) / self.zoom_level;
-
-        return Coordinate{ .x = @intFromFloat(camera_x), .y = @intFromFloat(camera_y) };
-    }
-
-    pub fn draw_simdata(self: *Window, data: []const f32, stride: usize) void {
+    pub fn draw_simdata(self: *Window, data: []const f32, stride: usize, zoom_level: f32, window_pos: Coordinate) void {
+        std.debug.print("zoom level: {}\n", .{zoom_level});
         var pixels: *[RENDERBUFFER_SIZE]u32 = undefined;
         var width: c_int = WIDTH;
         if (c.SDL_LockTexture(self.texture, null, @ptrCast(&pixels), &width) != 0) sdl_panic("Locking texture");
         for (0..@intCast(HEIGHT)) |y| {
             for (0..@intCast(WIDTH)) |x| {
-                const simdata_coords = self.camera_to_sim_coord(
+                const simdata_coords = camera_to_sim_coord(
+                    zoom_level,
+                    window_pos,
                     .{ .x = @intCast(x), .y = @intCast(y) },
                 );
                 const simval = if (simdata_coords.x > 0 and simdata_coords.x < stride and simdata_coords.y > 0 and simdata_coords.y < data.len / stride) data[@as(usize, @intCast(simdata_coords.y)) * stride + @as(usize, @intCast(simdata_coords.x))] else 0;
@@ -195,4 +176,24 @@ fn clamp_float(val: f32) f32 {
     if (v < 0) return 0.0;
     if (v > 255) return 255.0;
     return v;
+}
+
+pub fn camera_to_sim_coord(zoom_level: f32, window_pos: Coordinate, coords: Coordinate) Coordinate {
+    const x_f: f32 = @floatFromInt(coords.x);
+    const y_f: f32 = @floatFromInt(coords.y);
+
+    const world_x: i32 = @as(i32, @intFromFloat(x_f * zoom_level - WIDTH * zoom_level / 2)) + window_pos.x;
+    const world_y: i32 = @as(i32, @intFromFloat(y_f * zoom_level - HEIGHT * zoom_level / 2)) + window_pos.y;
+
+    return Coordinate{ .x = world_x, .y = world_y };
+}
+
+pub fn sim_to_camera_coord(zoom_level: f32, window_pos: Coordinate, coords: Coordinate) Coordinate {
+    const x_f: f32 = @floatFromInt(coords.x);
+    const y_f: f32 = @floatFromInt(coords.y);
+
+    const camera_x = (x_f - @as(f32, @floatFromInt(window_pos.x)) + WIDTH * zoom_level / 2) / zoom_level;
+    const camera_y = (y_f - @as(f32, @floatFromInt(window_pos.y)) + HEIGHT * zoom_level / 2) / zoom_level;
+
+    return Coordinate{ .x = @intFromFloat(camera_x), .y = @intFromFloat(camera_y) };
 }
