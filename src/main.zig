@@ -67,7 +67,7 @@ pub fn main() !void {
     var is_holding_down = false;
     var is_holding_left = false;
     var is_holding_right = false;
-    var is_holding_zoom_in = false;
+    var held_zoom_button_counter: u8 = 0;
     var is_holding_zoom_out = false;
     var is_holding_left_button = false;
     const scroll_sensitivity = 2;
@@ -86,7 +86,7 @@ pub fn main() !void {
         if (is_holding_right) {
             window.window_pos.x += @intFromFloat(10 * window.zoom_level);
         }
-        if (is_holding_zoom_in) {
+        if (held_zoom_button_counter > 0) {
             window.zoom_level *= 0.98;
         }
         if (is_holding_zoom_out) {
@@ -185,9 +185,11 @@ pub fn main() !void {
                     if (scancode == c.SDL_SCANCODE_DOWN) {
                         is_holding_down = true;
                     }
-
-                    if (event.key.keysym.sym == c.SDLK_PLUS or event.key.keysym.sym == c.SDLK_EQUALS) {
-                        is_holding_zoom_in = true;
+                    if (event.key.keysym.sym == c.SDLK_PLUS) {
+                        held_zoom_button_counter = held_zoom_button_counter | 1;
+                    }
+                    if (event.key.keysym.sym == c.SDLK_EQUALS) {
+                        held_zoom_button_counter = held_zoom_button_counter | 2;
                     }
                     if (event.key.keysym.sym == c.SDLK_MINUS) {
                         is_holding_zoom_out = true;
@@ -214,8 +216,11 @@ pub fn main() !void {
                     if (scancode == c.SDL_SCANCODE_DOWN) {
                         is_holding_down = false;
                     }
-                    if (event.key.keysym.sym == c.SDLK_PLUS or event.key.keysym.sym == c.SDLK_EQUALS) {
-                        is_holding_zoom_in = false;
+                    if (event.key.keysym.sym == c.SDLK_PLUS) {
+                        held_zoom_button_counter = held_zoom_button_counter ^ 1;
+                    }
+                    if (event.key.keysym.sym == c.SDLK_EQUALS) {
+                        held_zoom_button_counter = held_zoom_button_counter ^ 2;
                     }
                     if (event.key.keysym.sym == c.SDLK_MINUS) {
                         is_holding_zoom_out = false;

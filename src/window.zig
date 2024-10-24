@@ -89,17 +89,33 @@ pub const Window = struct {
         if (c.SDL_LockTexture(self.texture, null, @ptrCast(&pixels), &width) != 0) sdl_panic("Locking texture");
         // var mode: c.SDL_DisplayMode = undefined;
         // _ = c.SDL_GetWindowDisplayMode(self.win, &mode);
-        for (0..@intCast(HEIGHT)) |y| {
-            for (0..@intCast(WIDTH)) |x| {
+        for (1..@intCast(HEIGHT - 1)) |y| {
+            for (1..@intCast(WIDTH - 1)) |x| {
+                // Simulation data for points in the up, down, right, left directions.
+                const simdata_up = self.camera_to_sim_coord(
+                    .{ .x = @intCast(x), .y = @intCast(y - 1) },
+                );
+                const simdata_down = self.camera_to_sim_coord(
+                    .{ .x = @intCast(x), .y = @intCast(y + 1) },
+                );
+                const simdata_left = self.camera_to_sim_coord(
+                    .{ .x = @intCast(x - 1), .y = @intCast(y) },
+                );
+                const simdata_right = self.camera_to_sim_coord(
+                    .{ .x = @intCast(x + 1), .y = @intCast(y) },
+                );
+
+                const up = get_simval(simdata_up, data, stride);
+                const down = get_simval(simdata_down, data, stride);
+                const left = get_simval(simdata_left, data, stride);
+                const right = get_simval(simdata_right, data, stride);
+
+                // This point.
                 const simdata_coords = self.camera_to_sim_coord(
                     .{ .x = @intCast(x), .y = @intCast(y) },
                 );
 
                 const simval = get_simval(simdata_coords, data, stride);
-                const up = get_simval(simdata_coords, data, stride);
-                const down = get_simval(simdata_coords, data, stride);
-                const left = get_simval(simdata_coords, data, stride);
-                const right = get_simval(simdata_coords, data, stride);
 
                 const locale = Locale{
                     .up = up,
@@ -182,6 +198,7 @@ fn sdl_panic(base_msg: []const u8) noreturn {
 
     @panic(&full_msg);
 }
+
 fn join_strs(s1: []const u8, s2: []const u8, buf: []u8) void {
     for (s1, 0..) |char, index| {
         buf[index] = char;
@@ -231,13 +248,13 @@ fn map_to_color(val: f32, locale: Locale) f32 {
     const r = Vector{
         .x = 0,
         .y = 1,
-        .z = locale.up - locale.down,
+        .z = (locale.up - locale.down),
     };
 
     const s = Vector{
         .x = 1,
         .y = 0,
-        .z = locale.right - locale.left,
+        .z = (locale.right - locale.left),
     };
 
     const qr = Vector{
