@@ -5,7 +5,6 @@ pub const height = 2048;
 pub const Simstate = SimStateWithSize(width, height);
 const Obstacle = @import("common.zig").Obstacle;
 const Oscillator = @import("common.zig").Oscillator;
-
 const Coordinate = @import("common.zig").Coordinate;
 
 pub fn SimStateWithSize(simwidth: u32, simheight: u32) type {
@@ -13,6 +12,23 @@ pub fn SimStateWithSize(simwidth: u32, simheight: u32) type {
         obstacles: std.ArrayList(Obstacle),
         oscillators: std.ArrayList(Oscillator),
         scratch_buffer: *[simwidth * simheight * 8]u8,
+        id: u32 = 0,
+
+        pub fn create_obstacle(self: *@This(), x: u32, y: u32, w: u32, h: u32) !Obstacle {
+            const id = self.id;
+            self.id += 1;
+            const obstacle = Obstacle{ .id = id, .x = x, .y = y, .width = w, .height = h };
+            try self.obstacles.append(obstacle);
+            return obstacle;
+        }
+
+        pub fn create_oscillator(self: *@This(), x: u32, y: u32, amplitude: f32, wavelengths: []const f32) !Oscillator {
+            const id = self.id;
+            self.id += 1;
+            const oscillator = try Oscillator.init(id, x, y, amplitude, wavelengths);
+            try self.oscillators.append(oscillator);
+            return oscillator;
+        }
 
         pub fn alloc_scratch(self: *@This(), t: type, len: comptime_int) *[len]t {
             const buf_size = self.scratch_buffer.len * @sizeOf(u8);

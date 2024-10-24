@@ -1,4 +1,5 @@
 struct Oscillator {
+    int id;
     int x;
     int y;
     float amplitude;

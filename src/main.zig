@@ -17,37 +17,36 @@ const Simstate = @import("simstate.zig").Simstate;
 const handle_events = @import("event_handler.zig").handle_events_with_size(width, height).handle_events;
 const Appstate = @import("appstate.zig").Appstate;
 const sim_to_camera_coord = @import("window.zig").sim_to_camera_coord;
+const UI = @import("ui.zig").UI;
+const generate_ui = @import("ui.zig").generate_ui_with_size(width, height).update_ui;
 pub fn main() !void {
     const allocator = std.heap.c_allocator;
 
     var window = try Window.init(WIDTH, HEIGHT, std.heap.c_allocator);
     const hole_width = 50;
     const hole_start = height / 2 - hole_width / 2;
-    // const hole_end = height / 2 + hole_width / 2;
-    var obstacles: [3]Obstacle = undefined;
-    obstacles[0] = Obstacle{ .x = 3000, .y = 0, .width = 50, .height = hole_start - 20 };
-    obstacles[1] = Obstacle{ .x = 3000, .y = hole_start, .width = 50, .height = hole_width };
-    obstacles[2] = Obstacle{ .x = 3000, .y = hole_start + hole_width + 20, .width = 50, .height = height - (hole_start + hole_width + 20) };
+
     const oscillator_start = height / 2 - hole_width / 2;
     const oscillator_end = height / 2 + hole_width / 2;
     const oscillator_count = 100;
-    var oscillators = std.ArrayList(Oscillator).init(allocator);
+
+    var solver = try OpenCLSolverWithSize(width, height).init(0.001, 1, 100, allocator); // Initialize the solver
+    var simstate = try Simstate.init(allocator);
+    _ = try simstate.create_obstacle(3000, 0, 50, hole_start - 20);
+    _ = try simstate.create_obstacle(3000, hole_start, 50, hole_width);
+    _ = try simstate.create_obstacle(3000, hole_start + hole_width + 20, 50, height - (hole_start + hole_width + 20));
     for (0..oscillator_count) |i| {
         const i_f: f32 = @floatFromInt(i);
         const oscillator_count_f: f32 = @floatFromInt(oscillator_count);
-        try oscillators.append(try Oscillator.init(
+        _ = try simstate.create_oscillator(
             3500,
             oscillator_start + @as(u32, @intFromFloat((oscillator_end - oscillator_start) * i_f / oscillator_count_f)),
             1000,
             &[_]f32{
                 10,
             },
-        ));
+        );
     }
-    var solver = try OpenCLSolverWithSize(width, height).init(0.001, 1, 100, allocator); // Initialize the solver
-    var simstate = try Simstate.init(allocator);
-    try simstate.obstacles.appendSlice(&obstacles);
-    try simstate.oscillators.appendSlice(oscillators.items);
     solver.on_simstate_update(&simstate);
     var iter: u32 = 0;
     const target_fps = 60;
@@ -58,10 +57,12 @@ pub fn main() !void {
 
     const simdata_scratch = simstate.alloc_scratch(f32, width * height);
     var appstate = Appstate{ .zoom_level = @max(@as(f32, @floatFromInt(width)) / WIDTH, @as(f32, @floatFromInt(height)) / HEIGHT) };
+    var ui: UI = UI{};
+
     while (appstate.keep_going) {
         iter += 1;
 
-        handle_events(&appstate, &simstate, &solver);
+        handle_events(&ui, &appstate, &simstate, &solver);
         std.debug.print("\n\n --- Frame {} --- \n", .{iter});
         const target_frame_time: i64 = 1000 / target_fps;
         const start_solve_time = std.time.milliTimestamp();
@@ -83,29 +84,9 @@ pub fn main() !void {
         const start_present_time = std.time.milliTimestamp();
 
         window.draw_simdata(solver.read_simdata(simdata_scratch), width, appstate.zoom_level, appstate.window_pos);
+        generate_ui(&simstate, &appstate, &ui);
+        window.draw_ui(&ui);
 
-        for (obstacles) |obstacle| {
-            const upper_left = sim_to_camera_coord(appstate.zoom_level, appstate.window_pos, .{ .x = @intCast(obstacle.x), .y = @intCast(obstacle.y) });
-            const lower_right = sim_to_camera_coord(appstate.zoom_level, appstate.window_pos, .{ .x = @intCast(obstacle.x + obstacle.width), .y = @intCast(obstacle.y + obstacle.height) });
-            window.draw_filled_box(
-                .{ .x = @intCast(upper_left.x), .y = @intCast(upper_left.y) },
-                .{ .x = @intCast(lower_right.x), .y = @intCast(lower_right.y) },
-                0,
-                0,
-                0,
-                255,
-            );
-        }
-        const boundary_upper_left = sim_to_camera_coord(appstate.zoom_level, appstate.window_pos, .{ .x = 0, .y = 0 });
-        const boundary_lower_right = sim_to_camera_coord(appstate.zoom_level, appstate.window_pos, .{ .x = @intCast(width), .y = @intCast(height) });
-        window.draw_box(
-            .{ .x = boundary_upper_left.x, .y = boundary_upper_left.y },
-            .{ .x = boundary_lower_right.x, .y = boundary_lower_right.y },
-            255,
-            0,
-            0,
-            255,
-        );
         window.present();
 
         const end_present_time = std.time.milliTimestamp();

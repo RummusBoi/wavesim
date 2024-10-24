@@ -4,9 +4,10 @@ const Appstate = @import("appstate.zig").Appstate;
 const sqrt = @import("std").math.sqrt;
 const pow = @import("std").math.pow;
 const OpenCLSolverWithSize = @import("opencl_solver.zig").OpenCLSolverWithSize;
+const UI = @import("ui.zig").UI;
 pub fn handle_events_with_size(width: comptime_int, height: comptime_int) type {
     return struct {
-        pub fn handle_events(appstate: *Appstate, simstate: *Simstate, solver: *OpenCLSolverWithSize(width, height)) void {
+        pub fn handle_events(ui: *const UI, appstate: *Appstate, simstate: *Simstate, solver: *OpenCLSolverWithSize(width, height)) void {
             var event: c.SDL_Event = undefined;
             const simdata_scratch = simstate.alloc_scratch(f32, width * height);
             if (appstate.button_states.is_holding_up) {
@@ -35,6 +36,9 @@ pub fn handle_events_with_size(width: comptime_int, height: comptime_int) type {
                     },
                     c.SDL_MOUSEBUTTONDOWN => {
                         if (event.button.button == c.SDL_BUTTON_LEFT) {
+                            if (ui.find_intersecting_button(appstate.mouse_pos.x, appstate.mouse_pos.y)) |button| {
+                                button.on_click(simstate, appstate);
+                            }
                             appstate.button_states.is_holding_left_button = true;
                         }
                     },
@@ -44,6 +48,9 @@ pub fn handle_events_with_size(width: comptime_int, height: comptime_int) type {
                         }
                     },
                     c.SDL_MOUSEMOTION => {
+                        appstate.mouse_pos.x = event.motion.x;
+                        appstate.mouse_pos.y = event.motion.y;
+
                         if (appstate.button_states.is_holding_left_button) {
                             appstate.window_pos.x -= @intFromFloat(@as(f32, @floatFromInt(event.motion.xrel)) * appstate.zoom_level);
                             appstate.window_pos.y -= @intFromFloat(@as(f32, @floatFromInt(event.motion.yrel)) * appstate.zoom_level);

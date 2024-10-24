@@ -7,7 +7,9 @@ const Coordinate = @import("common.zig").Coordinate;
 pub const WIDTH = 1200;
 pub const HEIGHT = 800;
 pub const RENDERBUFFER_SIZE = HEIGHT * WIDTH;
-
+const UI = @import("ui.zig").UI;
+const Appstate = @import("appstate.zig").Appstate;
+const Box = @import("ui.zig").Box;
 pub const Window = struct {
     win: *c.SDL_Window,
     renderer: *c.SDL_Renderer,
@@ -67,6 +69,37 @@ pub const Window = struct {
         }
 
         c.SDL_UnlockTexture(self.texture);
+    }
+    fn draw_ui_box(self: *Window, box: Box) void {
+        const styling = box.styling;
+        if (styling.fill_color) |fill_color| {
+            self.draw_filled_box(
+                .{ .x = box.x, .y = box.y },
+                .{ .x = box.x + box.width, .y = box.y + box.height },
+                fill_color.r,
+                fill_color.g,
+                fill_color.b,
+                fill_color.a,
+            );
+        }
+        if (styling.border) |border| {
+            self.draw_box(
+                .{ .x = box.x, .y = box.y },
+                .{ .x = box.x + box.width, .y = box.y + box.height },
+                border.color.r,
+                border.color.g,
+                border.color.b,
+                border.color.a,
+            );
+        }
+    }
+    pub fn draw_ui(self: *Window, ui: *UI) void {
+        for (ui.boxes[0..ui.box_count]) |box| {
+            self.draw_ui_box(box);
+        }
+        for (ui.buttons[0..ui.button_count]) |button| {
+            self.draw_ui_box(button.box);
+        }
     }
     pub fn draw_filled_box(self: *Window, upper_left: Coordinate, lower_right: Coordinate, r: u32, g: u32, b: u32, a: u32) void {
         var pixels: *[RENDERBUFFER_SIZE]u32 = undefined;
@@ -197,3 +230,15 @@ pub fn sim_to_camera_coord(zoom_level: f32, window_pos: Coordinate, coords: Coor
 
     return Coordinate{ .x = @intFromFloat(camera_x), .y = @intFromFloat(camera_y) };
 }
+
+pub const HoverState = enum {
+    None,
+    Hover,
+    Pressed,
+
+    pub fn from_bool(hovering: bool, pressed: bool) HoverState {
+        if (pressed and hovering) return HoverState.Pressed;
+        if (hovering) return HoverState.Hover;
+        return HoverState.None;
+    }
+};

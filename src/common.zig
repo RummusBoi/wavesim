@@ -12,6 +12,7 @@ pub const Coordinate = struct {
 };
 
 pub const Obstacle = struct {
+    id: u32,
     x: u32,
     y: u32,
     width: u32,
@@ -19,15 +20,17 @@ pub const Obstacle = struct {
 };
 
 pub const Oscillator = struct {
+    id: u32,
     x: u32,
     y: u32,
     amplitude: f32,
     wavelengths: [5]f32,
     wavelength_count: u32,
-    pub fn init(x: u32, y: u32, amplitude: f32, wavelengths: []const f32) !Oscillator {
+    pub fn init(id: u32, x: u32, y: u32, amplitude: f32, wavelengths: []const f32) !Oscillator {
         var wavelength_array: [5]f32 = undefined;
         std.mem.copyForwards(f32, &wavelength_array, wavelengths);
         return Oscillator{
+            .id = id,
             .x = x,
             .y = y,
             .amplitude = amplitude,
