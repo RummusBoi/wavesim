@@ -1,3 +1,4 @@
+const c = @import("window.zig").c;
 const std = @import("std");
 const Simstate = @import("simstate.zig").Simstate;
 const Appstate = @import("appstate.zig").Appstate;
@@ -126,6 +127,8 @@ pub const UI = struct {
     box_count: usize = 0,
     buttons: [128]Button = undefined,
     button_count: usize = 0,
+    texts: [128]Text = undefined,
+    text_count: usize = 0,
 
     pub fn find_intersecting_button(self: *const UI, x: i32, y: i32) ?Button {
         for (self.buttons[0..self.button_count]) |button| {
@@ -163,6 +166,32 @@ pub const Box = struct {
     }
 };
 
+pub const Text = struct {
+    x: i32,
+    y: i32,
+    contents: []const u8,
+    font_size: u8,
+    styling: TextStyling,
+};
+
+pub const TextStyling = struct {
+    fill_color: ?struct {
+        r: u8,
+        g: u8,
+        b: u8,
+        a: u8,
+    },
+    border: ?struct {
+        color: struct {
+            r: u8,
+            g: u8,
+            b: u8,
+            a: u8,
+        },
+        width: u32,
+    },
+};
+
 pub const BoxStyling = struct {
     fill_color: ?struct {
         r: u8,
@@ -189,3 +218,64 @@ pub const Button = struct {
 fn on_pause_button_click(_: *Simstate, appstate: *Appstate) void {
     appstate.paused = !appstate.paused;
 }
+
+fn sdl_panic(base_msg: []const u8) noreturn {
+    std.debug.print("SDL panic detected.\n", .{});
+    const message = c.SDL_GetError() orelse @panic("Unknown error in SDL.");
+
+    var ptr: u32 = 0;
+    char_loop: while (true) {
+        const char = message[ptr];
+        if (char == 0) {
+            break :char_loop;
+        }
+        ptr += 1;
+    }
+    var zig_slice: []const u8 = undefined;
+    zig_slice.len = ptr;
+    zig_slice.ptr = message;
+
+    var full_msg: [256]u8 = undefined;
+    join_strs(base_msg, zig_slice, &full_msg);
+
+    @panic(&full_msg);
+}
+
+fn join_strs(s1: []const u8, s2: []const u8, buf: []u8) void {
+    for (s1, 0..) |char, index| {
+        buf[index] = char;
+    }
+    for (s2, 0..) |char, index| {
+        buf[s1.len + index] = char;
+    }
+}
+
+//        var w: c_int = undefined;
+//        var h: c_int = undefined;
+//
+//        self.scratch_buffer.clearRetainingCapacity();
+//        try self.scratch_buffer.appendSlice(value);
+//        try self.scratch_buffer.append(0);
+//        if (c.TTF_SizeText(self.font, @ptrCast(self.scratch_buffer.items), &w, &h) != 0) {
+//            sdl_panic("Getting text size");
+//        }
+//        if (value.len > 0) {
+//            const texture_res = self.find_cached_texture_for_value(value, "cell");
+//            const texture = texture_res orelse blk: {
+//                const font_color: c.SDL_Color = .{ .r = 0, .g = 0, .b = 0 };
+//
+//                const surface = c.TTF_RenderText_Shaded(self.font, @ptrCast(self.scratch_buffer.items), font_color, .{ .a = 255, .r = 255, .g = 255, .b = 255 });
+//                defer c.SDL_FreeSurface(surface);
+//                const texture = c.SDL_CreateTextureFromSurface(self.renderer, surface) orelse {
+//                    sdl_panic("Creating text texture.");
+//                };
+//                self.cache_texture(texture, value, "cell") catch {
+//                    std.debug.print("Could not cache texture.", .{});
+//                };
+//                break :blk texture;
+//            };
+//            const dest_rect: c.SDL_Rect = .{ .x = outer.x + 3, .y = outer.y + 3, .w = w, .h = h };
+//            if (c.SDL_RenderCopy(self.renderer, texture, null, &dest_rect) != 0) {
+//                sdl_panic("Could not render");
+//            }
+//        }
