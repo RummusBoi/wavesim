@@ -2,8 +2,10 @@ pub const c = @cImport({
     @cInclude("SDL2/SDL.h");
     @cInclude("SDL2/SDL_ttf.h");
 });
+const FONT = undefined;
 pub const std = @import("std");
 const Coordinate = @import("common.zig").Coordinate;
+const Text = @import("ui.zig").Text;
 pub const WIDTH = 1200;
 pub const HEIGHT = 800;
 pub const RENDERBUFFER_SIZE = HEIGHT * WIDTH;
@@ -100,10 +102,35 @@ pub const Window = struct {
         for (ui.buttons[0..ui.button_count]) |button| {
             self.draw_ui_box(button.box);
         }
+        for (ui.texts[0..ui.text_count]) |text| {
+            self.draw_text(text);
+        }
+    }
+    pub fn draw_text(self: *Window, text: Text) void {
+        var w: c_int = undefined;
+        var h: c_int = undefined;
+
+        if (c.TTF_SizeText(FONT, @ptrCast(text.contents), &w, &h) != 0) {
+            sdl_panic("Getting text size");
+        }
+
+        const font_color: c.SDL_Color = .{ .r = 0, .g = 0, .b = 0 };
+
+        const surface = c.TTF_RenderText_Shaded(FONT, @ptrCast(text.contents), font_color, .{ .a = 255, .r = 255, .g = 255, .b = 255 });
+        defer c.SDL_FreeSurface(surface);
+
+        const texture = c.SDL_CreateTextureFromSurface(self.renderer, surface) orelse {
+            sdl_panic("Creating text texture.");
+        };
+
+        const dest_rect: c.SDL_Rect = .{ .x = text.x, .y = text.y, .w = w, .h = h };
+        if (c.SDL_RenderCopy(self.renderer, texture, null, &dest_rect) != 0) {
+            sdl_panic("Couldn't render");
+        }
     }
     pub fn draw_filled_box(self: *Window, upper_left: Coordinate, lower_right: Coordinate, r: u32, g: u32, b: u32, a: u32) void {
-        var pixels: *[RENDERBUFFER_SIZE]u32 = undefined;
-        var width: c_int = WIDTH;
+        const pixels: *[RENDERBUFFER_SIZE]u32 = undefined;
+        const width: c_int = WIDTH;
         const u_left_clamped = upper_left.clamp(0, WIDTH, 0, HEIGHT);
         const l_right_clamped = lower_right.clamp(0, WIDTH, 0, HEIGHT);
 
