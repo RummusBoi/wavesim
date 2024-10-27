@@ -1,8 +1,9 @@
+const font_file_content = @embedFile("font/NaturalMono-Regular.ttf");
+
 pub const c = @cImport({
     @cInclude("SDL2/SDL.h");
     @cInclude("SDL2/SDL_ttf.h");
 });
-const FONT = undefined;
 pub const std = @import("std");
 const Coordinate = @import("common.zig").Coordinate;
 const Text = @import("ui.zig").Text;
@@ -14,6 +15,7 @@ const Appstate = @import("appstate.zig").Appstate;
 const Box = @import("ui.zig").Box;
 pub const Window = struct {
     win: *c.SDL_Window,
+    font: *c.TTF_Font,
     renderer: *c.SDL_Renderer,
     allocator: std.mem.Allocator,
     texture: *c.SDL_Texture,
@@ -39,11 +41,15 @@ pub const Window = struct {
             HEIGHT,
         ) orelse sdl_panic("Creating texture");
 
+        const rw_ops = c.SDL_RWFromConstMem(font_file_content, font_file_content.len) orelse sdl_panic("Interpreting font");
+        const font: *c.TTF_Font = c.TTF_OpenFontRW(rw_ops, 1, 13) orelse sdl_panic("Loading font");
+
         return Window{
             .win = win,
             .renderer = renderer,
             .allocator = allocator,
             .texture = texture,
+            .font = font,
             // .window_pos = Coordinate{ .x = @intFromFloat(WIDTH / 2 * zoom_level), .y = @intFromFloat(HEIGHT / 2 * zoom_level) },
             // .zoom_level = zoom_level,
         };
@@ -61,7 +67,10 @@ pub const Window = struct {
                     window_pos,
                     .{ .x = @intCast(x), .y = @intCast(y) },
                 );
-                const simval = if (simdata_coords.x > 0 and simdata_coords.x < stride and simdata_coords.y > 0 and simdata_coords.y < data.len / stride) data[@as(usize, @intCast(simdata_coords.y)) * stride + @as(usize, @intCast(simdata_coords.x))] else 0;
+                const simval = if (simdata_coords.x > 0
+                    and simdata_coords.x < stride
+                    and simdata_coords.y > 0
+                    and simdata_coords.y < data.len / stride) data[@as(usize, @intCast(simdata_coords.y)) * stride + @as(usize, @intCast(simdata_coords.x))] else 0;
                 const clamped = clamp_float(simval);
 
                 const color: u32 = @intFromFloat(clamped);
@@ -110,13 +119,19 @@ pub const Window = struct {
         var w: c_int = undefined;
         var h: c_int = undefined;
 
-        if (c.TTF_SizeText(FONT, @ptrCast(text.contents), &w, &h) != 0) {
+        std.debug.print("Contents: {s}", .{text.contents});
+        std.debug.print("Font: {s}", .{self.font});
+
+        const text_test = "Hej med dig";
+        _ = text_test;
+
+        if (c.TTF_SizeText(self.font, text.contents, &w, &h) != 0) {
             sdl_panic("Getting text size");
         }
 
         const font_color: c.SDL_Color = .{ .r = 0, .g = 0, .b = 0 };
 
-        const surface = c.TTF_RenderText_Shaded(FONT, @ptrCast(text.contents), font_color, .{ .a = 255, .r = 255, .g = 255, .b = 255 });
+        const surface = c.TTF_RenderText_Shaded(self.font, @ptrCast(text.contents), font_color, .{ .a = 255, .r = 255, .g = 255, .b = 255 });
         defer c.SDL_FreeSurface(surface);
 
         const texture = c.SDL_CreateTextureFromSurface(self.renderer, surface) orelse {
@@ -129,12 +144,13 @@ pub const Window = struct {
         }
     }
     pub fn draw_filled_box(self: *Window, upper_left: Coordinate, lower_right: Coordinate, r: u32, g: u32, b: u32, a: u32) void {
-        const pixels: *[RENDERBUFFER_SIZE]u32 = undefined;
-        const width: c_int = WIDTH;
+        var pixels: *[RENDERBUFFER_SIZE]u32 = undefined;
+        var width: c_int = WIDTH;
         const u_left_clamped = upper_left.clamp(0, WIDTH, 0, HEIGHT);
         const l_right_clamped = lower_right.clamp(0, WIDTH, 0, HEIGHT);
 
         if (c.SDL_LockTexture(self.texture, null, @ptrCast(&pixels), &width) != 0) sdl_panic("Locking texture");
+
         for (@intCast(u_left_clamped.x)..@intCast(l_right_clamped.x)) |x| {
             for (@intCast(u_left_clamped.y)..@intCast(l_right_clamped.y)) |y| {
                 const index: i32 = @intCast(y * WIDTH + x);

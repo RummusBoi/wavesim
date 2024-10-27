@@ -62,7 +62,23 @@ pub fn generate_ui_with_size(width: comptime_int, height: comptime_int) type {
             // Add pause button on the left!
             var button_index: usize = 0;
 
+            // Add a sample text! Why are we yelling!
+            ui.text_count = 1;
+
             if (appstate.paused) {
+                ui.texts[0] = Text{
+                    .x = 50,
+                    .y = 50,
+                    .contents = "hej med dig",
+                    .font_size = 11,
+                    .styling = TextStyling{
+                        .fill_color = null,
+                        .border = null,
+                    },
+                };
+
+                std.debug.print("Contents: {s}", .{ui.texts[0].contents});
+
                 ui.buttons[button_index] = Button{
                     .box = Box.init(
                         0,
@@ -169,7 +185,7 @@ pub const Box = struct {
 pub const Text = struct {
     x: i32,
     y: i32,
-    contents: []const u8,
+    contents: [*c]const u8,
     font_size: u8,
     styling: TextStyling,
 };
