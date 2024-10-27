@@ -248,13 +248,13 @@ fn map_to_color(val: f32, locale: Locale) f32 {
     const r = Vector{
         .x = 0,
         .y = 1,
-        .z = (locale.up - locale.down),
+        .z = (locale.up - locale.down) / 2,
     };
 
     const s = Vector{
         .x = 1,
         .y = 0,
-        .z = (locale.right - locale.left),
+        .z = (locale.right - locale.left) / 2,
     };
 
     const qr = Vector{
