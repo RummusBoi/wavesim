@@ -1,0 +1,17 @@
+name: Zig fmt and build
+run-name: zig fmt --check and zig build
+on: [push]
+jobs:
+  zig-fmt-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+      - run: sudo snap install --beta --classic zig
+      - run: sudo apt install libsdl2-dev
+      - run: sudo apt install libsdl2-ttf-dev
+      - run: sudo apt install ocl-icd-opencl-dev
+      - run: cd ${{ github.workspace }}
+      - run: zig version
+      - run: zig fmt --check .
+      - run: zig build
