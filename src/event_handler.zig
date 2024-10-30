@@ -8,7 +8,7 @@ const UI = @import("ui.zig").UI;
 const std = @import("std");
 pub fn handle_events_with_size(width: comptime_int, height: comptime_int) type {
     return struct {
-        pub fn handle_events(ui: *const UI, appstate: *Appstate, simstate: *Simstate solver: *OpenCLSolverWithSize(width, height)) void {
+        pub fn handle_events(ui: *const UI, appstate: *Appstate, simstate: *Simstate, solver: *OpenCLSolverWithSize(width, height)) void {
             var event: c.SDL_Event = undefined;
             appstate.updates = .{ .simstate = false };
             const simdata_scratch = simstate.alloc_scratch(f32, width * height);
