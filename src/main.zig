@@ -6,8 +6,7 @@ const pow = std.math.pow;
 const Window = @import("window.zig").Window;
 const c = @import("window.zig").c;
 const RENDERBUFFER_SIZE = @import("window.zig").RENDERBUFFER_SIZE;
-const WIDTH = @import("window.zig").WIDTH;
-const HEIGHT = @import("window.zig").HEIGHT;
+
 const OpenCLSolverWithSize = @import("opencl_solver.zig").OpenCLSolverWithSize;
 const Obstacle = @import("common.zig").Obstacle;
 const Oscillator = @import("common.zig").Oscillator;
@@ -19,6 +18,9 @@ const Appstate = @import("appstate.zig").Appstate;
 const sim_to_camera_coord = @import("window.zig").sim_to_camera_coord;
 const UI = @import("ui.zig").UI;
 const generate_ui = @import("ui.zig").generate_ui_with_size(width, height).update_ui;
+const HEIGHT = @import("window.zig").HEIGHT;
+const WIDTH = @import("window.zig").WIDTH;
+
 pub fn main() !void {
     const allocator = std.heap.c_allocator;
 
@@ -41,7 +43,7 @@ pub fn main() !void {
         _ = try simstate.create_oscillator(
             3500,
             oscillator_start + @as(u32, @intFromFloat((oscillator_end - oscillator_start) * i_f / oscillator_count_f)),
-            1000,
+            100,
             &[_]f32{
                 30,
             },
