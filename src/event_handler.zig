@@ -5,10 +5,12 @@ const sqrt = @import("std").math.sqrt;
 const pow = @import("std").math.pow;
 const OpenCLSolverWithSize = @import("opencl_solver.zig").OpenCLSolverWithSize;
 const UI = @import("ui.zig").UI;
+const std = @import("std");
 pub fn handle_events_with_size(width: comptime_int, height: comptime_int) type {
     return struct {
         pub fn handle_events(ui: *const UI, appstate: *Appstate, simstate: *Simstate solver: *OpenCLSolverWithSize(width, height)) void {
             var event: c.SDL_Event = undefined;
+            appstate.updates = .{ .simstate = false };
             const simdata_scratch = simstate.alloc_scratch(f32, width * height);
             if (appstate.button_states.is_holding_up) {
                 appstate.window_pos.y -= @intFromFloat(10 * appstate.zoom_level * appstate.ui_movement_scalor);
@@ -38,6 +40,10 @@ pub fn handle_events_with_size(width: comptime_int, height: comptime_int) type {
                         if (event.button.button == c.SDL_BUTTON_LEFT) {
                             if (ui.find_intersecting_button(appstate.mouse_pos.x, appstate.mouse_pos.y)) |button| {
                                 button.on_click(simstate, appstate);
+                                appstate.is_dragging_sim = false;
+                            } else {
+                                appstate.selected_entity = null;
+                                appstate.is_dragging_sim = true;
                             }
                             appstate.button_states.is_holding_left_button = true;
                         }
@@ -45,16 +51,24 @@ pub fn handle_events_with_size(width: comptime_int, height: comptime_int) type {
                     c.SDL_MOUSEBUTTONUP => {
                         if (event.button.button == c.SDL_BUTTON_LEFT) {
                             appstate.button_states.is_holding_left_button = false;
+                            appstate.is_dragging_sim = false;
+                            appstate.drag_obstacle_id = null;
                         }
                     },
                     c.SDL_MOUSEMOTION => {
-                        appstate.mouse_pos.x = event.motion.x;
-                        appstate.mouse_pos.y = event.motion.y;
+                        const xrel = event.motion.x - appstate.mouse_pos.x;
+                        const yrel = event.motion.y - appstate.mouse_pos.y;
 
                         if (appstate.button_states.is_holding_left_button) {
-                            appstate.window_pos.x -= @intFromFloat(@as(f32, @floatFromInt(event.motion.xrel)) * appstate.zoom_level);
-                            appstate.window_pos.y -= @intFromFloat(@as(f32, @floatFromInt(event.motion.yrel)) * appstate.zoom_level);
+                            if (appstate.is_dragging_sim) {
+                                appstate.window_pos.x -= @intFromFloat(@as(f32, @floatFromInt(xrel)) * appstate.zoom_level);
+                                appstate.window_pos.y -= @intFromFloat(@as(f32, @floatFromInt(yrel)) * appstate.zoom_level);
+                            } else if (ui.find_intersecting_button(appstate.mouse_pos.x, appstate.mouse_pos.y)) |button| {
+                                button.on_mouse_drag(simstate, appstate, xrel, yrel);
+                            }
                         }
+                        appstate.mouse_pos.x = event.motion.x;
+                        appstate.mouse_pos.y = event.motion.y;
                     },
                     c.SDL_MOUSEWHEEL => {
                         const x = event.wheel.preciseX;

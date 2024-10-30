@@ -135,11 +135,30 @@ pub fn OpenCLSolverWithSize(width: u32, height: u32) type {
             var total_pixel_count: u32 = 0;
             for (simstate.obstacles.items) |obstacle| {
                 for (obstacle.y..obstacle.y + obstacle.height) |y| {
+                    if (y >= height) {
+                        break;
+                    }
                     for (obstacle.x..obstacle.x + obstacle.width) |x| {
+                        if (x >= width) {
+                            break;
+                        }
                         obstacle_bfr[total_pixel_count] = .{ .x = @intCast(x), .y = @intCast(y) };
                         total_pixel_count += 1;
                     }
                 }
+            }
+            for (0..width) |x| {
+                obstacle_bfr[total_pixel_count] = .{ .x = @intCast(x), .y = 0 };
+                total_pixel_count += 1;
+                obstacle_bfr[total_pixel_count] = .{ .x = @intCast(x), .y = height - 1 };
+                total_pixel_count += 1;
+            }
+
+            for (0..height) |y| {
+                obstacle_bfr[total_pixel_count] = .{ .x = 0, .y = @intCast(y) };
+                total_pixel_count += 1;
+                obstacle_bfr[total_pixel_count] = .{ .x = width - 1, .y = @intCast(y) };
+                total_pixel_count += 1;
             }
 
             std.debug.print("Total pixel count: {}\n", .{total_pixel_count});
@@ -293,7 +312,7 @@ pub fn OpenCLSolverWithSize(width: u32, height: u32) type {
                     break :blk self.buffer3;
                 }
             };
-            const start_read = std.time.microTimestamp();
+            // const start_read = std.time.microTimestamp();
             const read_complete = self.queue.enqueueReadBuffer(
                 f32,
                 buffer_to_read,
@@ -305,9 +324,9 @@ pub fn OpenCLSolverWithSize(width: u32, height: u32) type {
             defer read_complete.release();
 
             cl.waitForEvents(&.{read_complete}) catch @panic("Failed to wait for read buffer");
-            const end_read = std.time.microTimestamp();
+            // const end_read = std.time.microTimestamp();
 
-            std.debug.print("Read time: {}\n", .{end_read - start_read});
+            // std.debug.print("Read time: {}\n", .{end_read - start_read});
             return dest;
         }
     };
