@@ -40,6 +40,15 @@ pub fn SimStateWithSize(simwidth: u32, simheight: u32) type {
             return result;
         }
 
+        pub fn get_obstacle_by_id(self: *@This(), id: u32) ?*Obstacle {
+            for (self.obstacles.items) |*obstacle| {
+                if (obstacle.id == id) {
+                    return obstacle;
+                }
+            }
+            return null;
+        }
+
         pub fn init(allocator: std.mem.Allocator) !@This() {
             const buf: *[width * height * 8]u8 = @ptrCast(try allocator.alloc(u8, simwidth * simheight * 8));
             return @This(){
