@@ -25,7 +25,7 @@
     .dependencies = .{
         .zig_opencl = .{
             .url = "https://github.com/RummusBoi/opencl-zig/archive/refs/heads/main.zip",
-            .hash = "1220d31ecf28e30d2255e3f4583b9966b46d8d57b0902dab34ab9f6b38d4164b200a",
+            .hash = "12201ddcf6588b7ab98d581af18bf87e5c6d2dac220e3493d8bab786b45acbfb2b27",
         },
         .opencl_headers = .{
             .url = "https://github.com/KhronosGroup/OpenCL-Headers/archive/v2024.05.08.tar.gz",
