@@ -21,6 +21,9 @@ jobs:
       - run: sudo apt install libsdl2-dev
       - run: sudo apt install libsdl2-ttf-dev
       - run: sudo apt install ocl-icd-opencl-dev
+      - run: pwd
+      - run: ls
+      - run: cd ${{ github.workspace }}
       - run: zig version
       - run: zig fmt --check .
       - run: zig build
