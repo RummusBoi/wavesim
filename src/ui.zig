@@ -65,17 +65,18 @@ pub fn generate_ui_with_size(width: comptime_int, height: comptime_int) type {
             // Add a sample text! Why are we yelling!
             ui.text_count = 1;
 
+            ui.texts[0] = Text{
+                .x = 50,
+                .y = 50,
+                .contents = "hej med dig",
+                .font_size = 11,
+                .styling = TextStyling{
+                    .fill_color = null,
+                    .border = null,
+                },
+            };
+
             if (appstate.paused) {
-                ui.texts[0] = Text{
-                    .x = 50,
-                    .y = 50,
-                    .contents = "hej med dig",
-                    .font_size = 11,
-                    .styling = TextStyling{
-                        .fill_color = null,
-                        .border = null,
-                    },
-                };
 
                 std.debug.print("Contents: {s}", .{ui.texts[0].contents});
 

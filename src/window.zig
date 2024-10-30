@@ -116,32 +116,53 @@ pub const Window = struct {
         }
     }
     pub fn draw_text(self: *Window, text: Text) void {
-        var w: c_int = undefined;
-        var h: c_int = undefined;
+        const w: c_int = undefined;
+        const h: c_int = undefined;
 
-        std.debug.print("Contents: {s}", .{text.contents});
-        std.debug.print("Font: {s}", .{self.font});
+        std.debug.print("Contents: {s}\n", .{text.contents});
+        std.debug.print("Font: {s}\n", .{self.font});
 
-        const text_test = "Hej med dig";
-        _ = text_test;
-
-        if (c.TTF_SizeText(self.font, text.contents, &w, &h) != 0) {
+        if (c.TTF_SizeText(self.font, text.contents, w, h) != 0) {
             sdl_panic("Getting text size");
         }
 
-        const font_color: c.SDL_Color = .{ .r = 0, .g = 0, .b = 0 };
+        std.debug.print("Size: {}, {}\n", .{w, h});
+        std.debug.print("Rect: {d}, {d}\n", .{text.x, text.y});
 
-        const surface = c.TTF_RenderText_Shaded(self.font, @ptrCast(text.contents), font_color, .{ .a = 255, .r = 255, .g = 255, .b = 255 });
+        const font_color: c.SDL_Color = .{ .r = 255, .g = 255, .b = 255 };
+
+        const surface = c.TTF_RenderText_Shaded(
+            self.font,
+            @ptrCast(text.contents),
+            font_color,
+            .{
+                .a = 255,
+                .r = 255,
+                .g = 255,
+                .b = 255
+            }
+        );
+
         defer c.SDL_FreeSurface(surface);
 
-        const texture = c.SDL_CreateTextureFromSurface(self.renderer, surface) orelse {
-            sdl_panic("Creating text texture.");
+        const dest_rect: c.SDL_Rect = .{
+            .x = 50,
+            .y = 50,
+            .w = 50,
+            .h = 50
         };
 
-        const dest_rect: c.SDL_Rect = .{ .x = text.x, .y = text.y, .w = w, .h = h };
-        if (c.SDL_RenderCopy(self.renderer, texture, null, &dest_rect) != 0) {
+        var pixels: *[RENDERBUFFER_SIZE]u32 = undefined;
+
+        std.debug.print("Segfault in three, two, one...\n", .{});
+
+        if (c.SDL_LockTexture(self.texture, null, @ptrCast(&pixels), WIDTH) != 0) sdl_panic("Locking texture");
+
+        if (c.SDL_RenderCopy(self.renderer, self.texture, null, &dest_rect) != 0) {
             sdl_panic("Couldn't render");
         }
+
+        c.SDL_UnlockTexture(self.texture);
     }
     pub fn draw_filled_box(self: *Window, upper_left: Coordinate, lower_right: Coordinate, r: u32, g: u32, b: u32, a: u32) void {
         var pixels: *[RENDERBUFFER_SIZE]u32 = undefined;
