@@ -88,7 +88,6 @@ pub fn main() !void {
         window.draw_ui(&ui);
 
         window.present();
-
         const end_present_time = std.time.milliTimestamp();
         std.debug.print("Present time: {}\n", .{end_present_time - start_present_time});
         const elapsed = std.time.milliTimestamp() - last_frame;
