@@ -93,6 +93,6 @@ pub fn main() !void {
         std.debug.print("Present time: {}\n", .{end_present_time - start_present_time});
         const elapsed = std.time.milliTimestamp() - last_frame;
         std.debug.print("TOTAL Frame time: {}\n", .{elapsed});
-        last_frame = std.time.milliTimestamp(
+        last_frame = std.time.milliTimestamp();
     }
 }

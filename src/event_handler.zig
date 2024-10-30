@@ -7,7 +7,7 @@ const OpenCLSolverWithSize = @import("opencl_solver.zig").OpenCLSolverWithSize;
 const UI = @import("ui.zig").UI;
 pub fn handle_events_with_size(width: comptime_int, height: comptime_int) type {
     return struct {
-        pub fn handle_events(ui: *const UI, appstate: *Appstate, simstate: *Simstate, solver: *OpenCLSolverWithSize(width, height)) void {
+        pub fn handle_events(ui: *const UI, appstate: *Appstate, simstate: *Simstate solver: *OpenCLSolverWithSize(width, height)) void {
             var event: c.SDL_Event = undefined;
             const simdata_scratch = simstate.alloc_scratch(f32, width * height);
             if (appstate.button_states.is_holding_up) {
