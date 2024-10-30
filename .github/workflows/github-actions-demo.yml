@@ -19,5 +19,5 @@ jobs:
       - run: echo "Running zig build"
       - run: sudo snap install --beta --classic zig
       - run: sudo snap install SDL2
-      - run: sudo snap install SDL2_ttf
+      - run: sudo apt install libsdl2
       - run: zig build
