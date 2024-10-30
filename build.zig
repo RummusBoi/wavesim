@@ -52,7 +52,7 @@ pub fn build(b: *std.Build) void {
     if (builtin.os.tag == .macos) {
         exe.linkFramework("OpenCL");
     } else {
-        exe.linkLibrary("OpenCL");
+        exe.linkSystemLibrary("OpenCL");
     }
     exe.linkSystemLibrary("SDL2");
     exe.linkSystemLibrary("SDL2_ttf");
