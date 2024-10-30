@@ -17,4 +17,5 @@ jobs:
           ls ${{ github.workspace }}
       - run: echo "🍏 This job's status is ${{ job.status }}."
       - run: echo "Running zig build"
+      - run: apt-get install zig
       - run: zig build
