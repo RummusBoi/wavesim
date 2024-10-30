@@ -18,4 +18,6 @@ jobs:
       - run: echo "🍏 This job's status is ${{ job.status }}."
       - run: echo "Running zig build"
       - run: sudo snap install --beta --classic zig
+      - run: sudo snap install SDL2
+      - run: sudo snap install SDL2_ttf
       - run: zig build
