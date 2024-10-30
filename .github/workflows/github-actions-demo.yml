@@ -20,5 +20,5 @@ jobs:
       - run: sudo snap install --beta --classic zig
       - run: sudo apt install libsdl2-dev
       - run: sudo apt install libsdl2-ttf-dev
-      - run: sudo apt install intel-opencl-icd
+      - run: sudo apt install ocl-icd-opencl-dev
       - run: zig build
