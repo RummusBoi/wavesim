@@ -8,8 +8,13 @@ pub const Appstate = struct {
     mouse_pos: Coordinate = .{ .x = 0, .y = 0 },
     selected_entity: ?u32 = null,
     zoom_level: f32 = 1.0,
+    is_dragging_sim: bool = false,
+    drag_obstacle_id: ?u32 = null,
     ui_movement_scalor: f32 = 1.0,
     selected_item_id: ?u32 = null,
+    updates: struct {
+        simstate: bool = false,
+    } = .{},
     button_states: struct {
         is_holding_up: bool = false,
         is_holding_down: bool = false,

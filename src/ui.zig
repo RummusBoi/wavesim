@@ -5,34 +5,44 @@ const Coordinate = @import("common.zig").Coordinate;
 const sim_to_camera_coord = @import("window.zig").sim_to_camera_coord;
 const camera_to_sim_coord = @import("window.zig").camera_to_sim_coord;
 const HoverState = @import("window.zig").HoverState;
+const simwidth = @import("simstate.zig").width;
+const simheight = @import("simstate.zig").height;
 pub fn generate_ui_with_size(width: comptime_int, height: comptime_int) type {
     return struct {
         pub fn update_ui(simstate: *Simstate, appstate: *Appstate, ui: *UI) void {
             var box_index: usize = 0;
+            var button_index: usize = 0;
+
             for (simstate.obstacles.items) |obstacle| {
                 const upper_left = sim_to_camera_coord(appstate.zoom_level, appstate.window_pos, .{ .x = @intCast(obstacle.x), .y = @intCast(obstacle.y) });
                 const lower_right = sim_to_camera_coord(appstate.zoom_level, appstate.window_pos, .{ .x = @intCast(obstacle.x + obstacle.width), .y = @intCast(obstacle.y + obstacle.height) });
-                ui.boxes[box_index] = Box.init(
-                    upper_left.x,
-                    upper_left.y,
-                    lower_right.x - upper_left.x,
-                    lower_right.y - upper_left.y,
-                    .{
-                        .fill_color = .{ .r = 0, .g = 0, .b = 0, .a = 255 },
-                        .border = null,
-                    },
-                    .{
-                        .fill_color = .{ .r = 61, .g = 24, .b = 9, .a = 255 },
-                        .border = .{
-                            .color = .{ .r = 163, .g = 79, .b = 0, .a = 255 },
-                            .width = 1,
+                const is_selected = if (appstate.selected_entity) |selected_entity| selected_entity == obstacle.id else false;
+                const fill_color: Color = if (is_selected) .{ .r = 255, .g = 0, .b = 0, .a = 255 } else .{ .r = 0, .g = 0, .b = 0, .a = 255 };
+
+                ui.buttons[button_index] = ObstacleButton.init(
+                    obstacle.id,
+                    Box.init(
+                        upper_left.x,
+                        upper_left.y,
+                        lower_right.x - upper_left.x,
+                        lower_right.y - upper_left.y,
+                        .{
+                            .fill_color = fill_color,
+                            .border = null,
                         },
-                    },
-                    null,
-                    appstate.mouse_pos,
-                    appstate.button_states.is_holding_left_button,
+                        if (!is_selected) .{
+                            .fill_color = .{ .r = 61, .g = 24, .b = 9, .a = 255 },
+                            .border = .{
+                                .color = .{ .r = 163, .g = 79, .b = 0, .a = 255 },
+                                .width = 1,
+                            },
+                        } else null,
+                        null,
+                        appstate.mouse_pos,
+                        appstate.button_states.is_holding_left_button,
+                    ),
                 );
-                box_index += 1;
+                button_index += 1;
             }
 
             const boundary_upper_left = sim_to_camera_coord(appstate.zoom_level, appstate.window_pos, .{ .x = 0, .y = 0 });
@@ -59,11 +69,10 @@ pub fn generate_ui_with_size(width: comptime_int, height: comptime_int) type {
             ui.box_count = box_index;
 
             // Add pause button on the left!
-            var button_index: usize = 0;
 
             if (appstate.paused) {
-                ui.buttons[button_index] = Button{
-                    .box = Box.init(
+                ui.buttons[button_index] = PauseButton.init(
+                    Box.init(
                         0,
                         0,
                         100,
@@ -83,11 +92,10 @@ pub fn generate_ui_with_size(width: comptime_int, height: comptime_int) type {
                         appstate.mouse_pos,
                         appstate.button_states.is_holding_left_button,
                     ),
-                    .on_click = on_pause_button_click,
-                };
+                );
             } else {
-                ui.buttons[button_index] = Button{
-                    .box = Box.init(
+                ui.buttons[button_index] = PauseButton.init(
+                    Box.init(
                         0,
                         0,
                         100,
@@ -107,8 +115,7 @@ pub fn generate_ui_with_size(width: comptime_int, height: comptime_int) type {
                         appstate.mouse_pos,
                         appstate.button_states.is_holding_left_button,
                     ),
-                    .on_click = on_pause_button_click,
-                };
+                );
             }
 
             button_index += 1;
@@ -127,8 +134,8 @@ pub const UI = struct {
     buttons: [128]Button = undefined,
     button_count: usize = 0,
 
-    pub fn find_intersecting_button(self: *const UI, x: i32, y: i32) ?Button {
-        for (self.buttons[0..self.button_count]) |button| {
+    pub fn find_intersecting_button(self: *UI, x: i32, y: i32) ?*Button {
+        for (self.buttons[0..self.button_count]) |*button| {
             if (x >= button.box.x and x <= button.box.x + button.box.width and y >= button.box.y and y <= button.box.y + button.box.height) {
                 return button;
             }
@@ -164,28 +171,85 @@ pub const Box = struct {
 };
 
 pub const BoxStyling = struct {
-    fill_color: ?struct {
-        r: u8,
-        g: u8,
-        b: u8,
-        a: u8,
-    },
+    fill_color: ?Color,
     border: ?struct {
-        color: struct {
-            r: u8,
-            g: u8,
-            b: u8,
-            a: u8,
-        },
+        color: Color,
         width: u32,
     },
 };
 
-pub const Button = struct {
-    box: Box,
-    on_click: *const fn (simstate: *Simstate, appstate: *Appstate) void,
+const Color = struct {
+    r: u8,
+    g: u8,
+    b: u8,
+    a: u8,
 };
 
-fn on_pause_button_click(_: *Simstate, appstate: *Appstate) void {
-    appstate.paused = !appstate.paused;
-}
+pub const Button = struct {
+    payload: [16]u8 = undefined,
+    on_click_inner: *const fn (self: *Button, _: *Simstate, appstate: *Appstate) void,
+    on_mouse_drag_inner: *const fn (self: *Button, _: *Simstate, appstate: *Appstate, xrel: i32, yrel: i32) void,
+    box: Box,
+    pub fn on_click(self: *Button, simstate: *Simstate, appstate: *Appstate) void {
+        (self.on_click_inner)(self, simstate, appstate);
+    }
+    pub fn on_mouse_drag(self: *Button, simstate: *Simstate, appstate: *Appstate, xrel: i32, yrel: i32) void {
+        (self.on_mouse_drag_inner)(self, simstate, appstate, xrel, yrel);
+    }
+};
+
+pub const PauseButton = struct {
+    box: Box,
+    pub fn init(box: Box) Button {
+        return Button{
+            .box = box,
+            .on_click_inner = on_click,
+            .on_mouse_drag_inner = on_mouse_drag,
+            .payload = undefined,
+        };
+    }
+    pub fn on_click(_: *Button, _: *Simstate, appstate: *Appstate) void {
+        appstate.paused = !appstate.paused;
+    }
+    pub fn on_mouse_drag(_: *Button, _: *Simstate, _: *Appstate, _: i32, _: i32) void {}
+};
+
+pub const ObstacleButton = struct {
+    box: Box,
+    id: u32,
+    draw_start_pos: ?Coordinate,
+
+    pub fn init(id: u32, box: Box) Button {
+        var payload: [16]u8 = undefined;
+        std.mem.writeInt(u32, payload[0..4], id, .big);
+
+        return Button{
+            .box = box,
+            .on_click_inner = on_click,
+            .on_mouse_drag_inner = on_mouse_drag,
+            .payload = payload,
+        };
+    }
+
+    pub fn on_click(btn: *Button, _: *Simstate, appstate: *Appstate) void {
+        const id = std.mem.readInt(u32, btn.payload[0..4], .big);
+        appstate.drag_obstacle_id = id;
+
+        appstate.selected_entity = id;
+    }
+
+    pub fn on_mouse_drag(btn: *Button, simstate: *Simstate, appstate: *Appstate, xrel: i32, yrel: i32) void {
+        const id = std.mem.readInt(u32, btn.payload[0..4], .big);
+
+        if (simstate.get_obstacle_by_id(id)) |obstacle| {
+            const sim_drag_start = camera_to_sim_coord(appstate.zoom_level, appstate.window_pos, .{ .x = @intCast(appstate.mouse_pos.x), .y = @intCast(appstate.mouse_pos.y) });
+            const sim_drag_end = camera_to_sim_coord(appstate.zoom_level, appstate.window_pos, .{ .x = @intCast(appstate.mouse_pos.x + xrel), .y = @intCast(appstate.mouse_pos.y + yrel) });
+            const sim_drag_delta = sim_drag_end.sub(sim_drag_start);
+
+            obstacle.x = @intCast(@as(i32, @intCast(obstacle.x)) + @as(i32, @intCast(sim_drag_delta.x)));
+            obstacle.y = @intCast(@as(i32, @intCast(obstacle.y)) + @as(i32, @intCast(sim_drag_delta.y)));
+
+            appstate.updates.simstate = true;
+        }
+    }
+};
