@@ -23,14 +23,14 @@ pub fn main() !void {
     const allocator = std.heap.c_allocator;
 
     var window = try Window.init(WIDTH, HEIGHT, std.heap.c_allocator);
-    const hole_width = 50;
+    const hole_width = 200;
     const hole_start = height / 2 - hole_width / 2;
 
     const oscillator_start = height / 2 - hole_width / 2;
     const oscillator_end = height / 2 + hole_width / 2;
     const oscillator_count = 100;
 
-    var solver = try OpenCLSolverWithSize(width, height).init(0.001, 1, 100, allocator); // Initialize the solver
+    var solver = try OpenCLSolverWithSize(width, height).init(0.005, 1, 100, allocator); // Initialize the solver
     var simstate = try Simstate.init(allocator);
     _ = try simstate.create_obstacle(3000, 0, 50, hole_start - 20);
     _ = try simstate.create_obstacle(3000, hole_start, 50, hole_width);
@@ -43,7 +43,7 @@ pub fn main() !void {
             oscillator_start + @as(u32, @intFromFloat((oscillator_end - oscillator_start) * i_f / oscillator_count_f)),
             1,
             &[_]f32{
-                10,
+                30,
             },
         );
     }
@@ -67,7 +67,7 @@ pub fn main() !void {
     const simdata_scratch = simstate.alloc_scratch(f32, width * height);
     var appstate = Appstate{ .zoom_level = @max(@as(f32, @floatFromInt(width)) / WIDTH, @as(f32, @floatFromInt(height)) / HEIGHT) };
     var ui: UI = UI{};
-
+    const do_frame_prints = false;
     while (appstate.keep_going) {
         iter += 1;
         if (is_holding_up) {
@@ -90,7 +90,11 @@ pub fn main() !void {
         }
 
         handle_events(&ui, &appstate, &simstate, &solver);
-        std.debug.print("\n\n --- Frame {} --- \n", .{iter});
+
+        if (appstate.updates.simstate) {
+            solver.on_simstate_update(&simstate);
+        }
+        if (do_frame_prints) std.debug.print("\n\n --- Frame {} --- \n", .{iter});
 
         const target_frame_time: i64 = 1000 / target_fps;
         // const start_solve_time = std.time.milliTimestamp();
@@ -109,7 +113,7 @@ pub fn main() !void {
 
         c.SDL_Delay(@intCast(sleep_time));
         const end_solve_time = std.time.milliTimestamp();
-        std.debug.print("Solve time: {}, sleep time: {}, solves: {}, solves / sec: {}\n", .{ end_solve_time - start_solve_time - sleep_time, sleep_time, solve_count, solve_count * target_fps });
+        if (do_frame_prints) std.debug.print("Solve time: {}, sleep time: {}, solves: {}, solves / sec: {}\n", .{ end_solve_time - start_solve_time - sleep_time, sleep_time, solve_count, solve_count * target_fps });
         const start_present_time = std.time.milliTimestamp();
 
         window.draw_simdata(solver.read_simdata(simdata_scratch), width, appstate.zoom_level, appstate.window_pos);
@@ -118,10 +122,12 @@ pub fn main() !void {
 
         window.present();
 
-        // const end_present_time = std.time.milliTimestamp();
-        // std.debug.print("Present time: {}\n", .{end_present_time - start_present_time});
-        // const elapsed = std.time.milliTimestamp() - last_frame;
-        // std.debug.print("TOTAL Frame time: {}\n", .{elapsed});
+
+        const end_present_time = std.time.milliTimestamp();
+        if (do_frame_prints) std.debug.print("Present time: {}\n", .{end_present_time - start_present_time});
+        const elapsed = std.time.milliTimestamp() - last_frame;
+        if (do_frame_prints) std.debug.print("TOTAL Frame time: {}\n", .{elapsed});
+
         last_frame = std.time.milliTimestamp();
         // c.SDL_Delay(100);
         while (c.SDL_PollEvent(&event) != 0) {

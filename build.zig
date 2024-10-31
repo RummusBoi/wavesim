@@ -1,5 +1,5 @@
 const std = @import("std");
-
+const builtin = @import("builtin");
 // Although this function looks imperative, note that its job is to
 // declaratively construct a build graph that will be executed by an external
 // runner.
@@ -49,7 +49,13 @@ pub fn build(b: *std.Build) void {
     });
 
     exe.root_module.addImport("zig_opencl", zig_opencl.module("opencl"));
-    exe.linkFramework("OpenCL");
+    if (builtin.os.tag == .macos) {
+        exe.linkFramework("OpenCL");
+    } else {
+        exe.linkSystemLibrary("OpenCL");
+    }
+    exe.linkSystemLibrary("SDL2");
+    exe.linkSystemLibrary("SDL2_ttf");
 
     const headers = b.dependency("opencl_headers", .{});
     exe.addIncludePath(headers.path(""));
