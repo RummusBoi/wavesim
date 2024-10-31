@@ -15,9 +15,9 @@ pub const Appstate = struct {
         is_holding_down: bool = false,
         is_holding_left: bool = false,
         is_holding_right: bool = false,
-        is_holding_zoom_in: bool = false,
         is_holding_zoom_out: bool = false,
         is_holding_left_button: bool = false,
+        held_zoom_button_counter: u8 = 0,
     } = .{},
 
     pub fn init() @This() {

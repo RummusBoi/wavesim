@@ -54,15 +54,6 @@ pub fn main() !void {
     const estimated_present_time: comptime_float = 6; // amortized present time
     const solves_per_frame: comptime_int = @intFromFloat(@as(comptime_float, (1000 / target_fps - estimated_present_time)) / estimated_solve_time); // sub 1 ms, as it takes roughly 1ms to show results
     var last_frame = std.time.milliTimestamp();
-    var paused = false;
-    var is_holding_up = false;
-    var is_holding_down = false;
-    var is_holding_left = false;
-    var is_holding_right = false;
-    var held_zoom_button_counter: u8 = 0;
-    var is_holding_zoom_out = false;
-    var is_holding_left_button = false;
-    const scroll_sensitivity = 2;
 
     const simdata_scratch = simstate.alloc_scratch(f32, width * height);
     var appstate = Appstate{ .zoom_level = @max(@as(f32, @floatFromInt(width)) / WIDTH, @as(f32, @floatFromInt(height)) / HEIGHT) };
@@ -70,30 +61,12 @@ pub fn main() !void {
 
     while (appstate.keep_going) {
         iter += 1;
-        if (is_holding_up) {
-            window.window_pos.y -= @intFromFloat(10 * window.zoom_level);
-        }
-        if (is_holding_down) {
-            window.window_pos.y += @intFromFloat(10 * window.zoom_level);
-        }
-        if (is_holding_left) {
-            window.window_pos.x -= @intFromFloat(10 * window.zoom_level);
-        }
-        if (is_holding_right) {
-            window.window_pos.x += @intFromFloat(10 * window.zoom_level);
-        }
-        if (held_zoom_button_counter > 0) {
-            window.zoom_level *= 0.98;
-        }
-        if (is_holding_zoom_out) {
-            window.zoom_level *= 1.02;
-        }
 
         handle_events(&ui, &appstate, &simstate, &solver);
         std.debug.print("\n\n --- Frame {} --- \n", .{iter});
 
         const target_frame_time: i64 = 1000 / target_fps;
-        // const start_solve_time = std.time.milliTimestamp();
+        const start_solve_time = std.time.milliTimestamp();
         var solve_count: u32 = 0;
         var sleep_time: i64 = 0;
         if (!appstate.paused) {
@@ -110,7 +83,7 @@ pub fn main() !void {
         c.SDL_Delay(@intCast(sleep_time));
         const end_solve_time = std.time.milliTimestamp();
         std.debug.print("Solve time: {}, sleep time: {}, solves: {}, solves / sec: {}\n", .{ end_solve_time - start_solve_time - sleep_time, sleep_time, solve_count, solve_count * target_fps });
-        const start_present_time = std.time.milliTimestamp();
+        // const start_present_time = std.time.milliTimestamp();
 
         window.draw_simdata(solver.read_simdata(simdata_scratch), width, appstate.zoom_level, appstate.window_pos);
         generate_ui(&simstate, &appstate, &ui);
@@ -124,105 +97,5 @@ pub fn main() !void {
         // std.debug.print("TOTAL Frame time: {}\n", .{elapsed});
         last_frame = std.time.milliTimestamp();
         // c.SDL_Delay(100);
-        while (c.SDL_PollEvent(&event) != 0) {
-            switch (event.type) {
-                c.SDL_QUIT => {
-                    keep_going = false;
-                    break;
-                },
-                c.SDL_MOUSEBUTTONDOWN => {
-                    if (event.button.button == c.SDL_BUTTON_LEFT) {
-                        is_holding_left_button = true;
-                    }
-                },
-                c.SDL_MOUSEBUTTONUP => {
-                    if (event.button.button == c.SDL_BUTTON_LEFT) {
-                        is_holding_left_button = false;
-                    }
-                },
-                c.SDL_MOUSEMOTION => {
-                    if (is_holding_left_button) {
-                        window.window_pos.x -= @intFromFloat(@as(f32, @floatFromInt(event.motion.xrel)) * window.zoom_level);
-                        window.window_pos.y -= @intFromFloat(@as(f32, @floatFromInt(event.motion.yrel)) * window.zoom_level);
-                    }
-                },
-                c.SDL_MOUSEWHEEL => {
-                    const x = event.wheel.preciseX;
-                    const y = event.wheel.preciseY;
-
-                    const norm = @min(sqrt(pow(f32, x, 2) + pow(f32, y, 2)), 200);
-
-                    if (norm == 0) {
-                        break;
-                    }
-
-                    const norm_scaled = pow(f32, @as(f32, norm), 1.5);
-                    const norms_ratio = norm_scaled / norm;
-
-                    window.window_pos.x += @intFromFloat(x * norms_ratio * scroll_sensitivity * window.zoom_level);
-                    window.window_pos.y -= @intFromFloat(y * norms_ratio * scroll_sensitivity * window.zoom_level);
-                },
-                c.SDL_KEYDOWN => {
-                    const scancode = event.key.keysym.scancode;
-                    if (scancode == c.SDL_SCANCODE_ESCAPE) {
-                        keep_going = false;
-                        break;
-                    }
-                    if (scancode == c.SDL_SCANCODE_LEFT) {
-                        is_holding_left = true;
-                    }
-                    if (scancode == c.SDL_SCANCODE_RIGHT) {
-                        is_holding_right = true;
-                    }
-                    if (scancode == c.SDL_SCANCODE_UP) {
-                        is_holding_up = true;
-                    }
-                    if (scancode == c.SDL_SCANCODE_DOWN) {
-                        is_holding_down = true;
-                    }
-                    if (event.key.keysym.sym == c.SDLK_PLUS) {
-                        held_zoom_button_counter = held_zoom_button_counter | 1;
-                    }
-                    if (event.key.keysym.sym == c.SDLK_EQUALS) {
-                        held_zoom_button_counter = held_zoom_button_counter | 2;
-                    }
-                    if (event.key.keysym.sym == c.SDLK_MINUS) {
-                        is_holding_zoom_out = true;
-                    }
-                    if (event.key.keysym.sym == c.SDLK_r) {
-                        try solver.reset();
-                    }
-                    if (event.key.keysym.sym == c.SDLK_SPACE) {
-                        paused = !paused;
-                    }
-                },
-                c.SDL_KEYUP => {
-                    const scancode = event.key.keysym.scancode;
-
-                    if (scancode == c.SDL_SCANCODE_LEFT) {
-                        is_holding_left = false;
-                    }
-                    if (scancode == c.SDL_SCANCODE_RIGHT) {
-                        is_holding_right = false;
-                    }
-                    if (scancode == c.SDL_SCANCODE_UP) {
-                        is_holding_up = false;
-                    }
-                    if (scancode == c.SDL_SCANCODE_DOWN) {
-                        is_holding_down = false;
-                    }
-                    if (event.key.keysym.sym == c.SDLK_PLUS) {
-                        held_zoom_button_counter = held_zoom_button_counter ^ 1;
-                    }
-                    if (event.key.keysym.sym == c.SDLK_EQUALS) {
-                        held_zoom_button_counter = held_zoom_button_counter ^ 2;
-                    }
-                    if (event.key.keysym.sym == c.SDLK_MINUS) {
-                        is_holding_zoom_out = false;
-                    }
-                },
-                else => {},
-            }
-        }
     }
 }

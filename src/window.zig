@@ -77,16 +77,24 @@ pub const Window = struct {
         for (1..@intCast(HEIGHT - 1)) |y| {
             for (1..@intCast(WIDTH - 1)) |x| {
                 // Simulation data for points in the up, down, right, left directions.
-                const simdata_up = self.camera_to_sim_coord(
+                const simdata_up = camera_to_sim_coord(
+                    zoom_level,
+                    window_pos,
                     .{ .x = @intCast(x), .y = @intCast(y - 1) },
                 );
-                const simdata_down = self.camera_to_sim_coord(
+                const simdata_down = camera_to_sim_coord(
+                    zoom_level,
+                    window_pos,
                     .{ .x = @intCast(x), .y = @intCast(y + 1) },
                 );
-                const simdata_left = self.camera_to_sim_coord(
+                const simdata_left = camera_to_sim_coord(
+                    zoom_level,
+                    window_pos,
                     .{ .x = @intCast(x - 1), .y = @intCast(y) },
                 );
-                const simdata_right = self.camera_to_sim_coord(
+                const simdata_right = camera_to_sim_coord(
+                    zoom_level,
+                    window_pos,
                     .{ .x = @intCast(x + 1), .y = @intCast(y) },
                 );
 
@@ -96,13 +104,13 @@ pub const Window = struct {
                 const right = get_simval(simdata_right, data, stride);
 
                 // This point.
-                const simval = get_simval(simdata_coords, data, stride);
-
                 const simdata_coords = camera_to_sim_coord(
                     zoom_level,
                     window_pos,
                     .{ .x = @intCast(x), .y = @intCast(y) },
                 );
+
+                const simval = get_simval(simdata_coords, data, stride);
 
                 const locale = Locale{
                     .up = up,
@@ -259,7 +267,7 @@ fn join_strs(s1: []const u8, s2: []const u8, buf: []u8) void {
     }
 }
 
-fn get_simval(simdata_coords: Coordinates, data: []const f32, stride: usize) f32 {
+fn get_simval(simdata_coords: Coordinate, data: []const f32, stride: usize) f32 {
     return if (simdata_coords.x > 0 and simdata_coords.x < stride and simdata_coords.y > 0 and simdata_coords.y < data.len / stride)
         data[@as(usize, @intCast(simdata_coords.y)) * stride + @as(usize, @intCast(simdata_coords.x))]
     else
@@ -351,6 +359,7 @@ pub const Vector = struct {
 pub const Coordinates = struct {
     x: i32,
     y: i32,
+};
 
 pub fn camera_to_sim_coord(zoom_level: f32, window_pos: Coordinate, coords: Coordinate) Coordinate {
     const x_f: f32 = @floatFromInt(coords.x);
