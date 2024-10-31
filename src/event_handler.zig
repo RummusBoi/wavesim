@@ -128,11 +128,11 @@ pub fn handle_events_with_size(width: comptime_int, height: comptime_int) type {
 
                         if (event.key.keysym.sym == c.SDLK_PLUS) {
                             appstate.button_states.held_zoom_button_counter =
-                            appstate.button_states.held_zoom_button_counter ^ 1;
+                                appstate.button_states.held_zoom_button_counter ^ 1;
                         }
                         if (event.key.keysym.sym == c.SDLK_EQUALS) {
                             appstate.button_states.held_zoom_button_counter =
-                            appstate.button_states.held_zoom_button_counter ^ 2;
+                                appstate.button_states.held_zoom_button_counter ^ 2;
                         }
                         if (scancode == c.SDL_SCANCODE_LEFT) {
                             appstate.button_states.is_holding_left = false;
