@@ -117,6 +117,16 @@ pub fn handle_events_with_size(width: comptime_int, height: comptime_int) type {
                         if (event.key.keysym.sym == c.SDLK_SPACE) {
                             appstate.paused = !appstate.paused;
                         }
+                        if (event.key.keysym.sym == c.SDLK_m) {
+                            appstate.menu_open = !appstate.menu_open;
+                        }
+                        if (event.key.keysym.sym == c.SDLK_d) {
+                            if (appstate.selected_entity) |id| {
+                                simstate.remove_entity_by_id(id);
+                                appstate.selected_entity = null;
+                                appstate.updates.simstate = true;
+                            }
+                        }
                     },
                     c.SDL_KEYUP => {
                         const scancode = event.key.keysym.scancode;

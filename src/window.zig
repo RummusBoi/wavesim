@@ -9,7 +9,8 @@ pub const HEIGHT = 800;
 pub const RENDERBUFFER_SIZE = HEIGHT * WIDTH;
 const UI = @import("ui.zig").UI;
 const Appstate = @import("appstate.zig").Appstate;
-const Box = @import("ui.zig").Box;
+const Box = @import("ui_common.zig").Box;
+
 pub const Window = struct {
     win: *c.SDL_Window,
     renderer: *c.SDL_Renderer,

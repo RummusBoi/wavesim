@@ -15,6 +15,7 @@ pub const Appstate = struct {
     updates: struct {
         simstate: bool = false,
     } = .{},
+    menu_open: bool = true,
     button_states: struct {
         is_holding_up: bool = false,
         is_holding_down: bool = false,

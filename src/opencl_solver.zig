@@ -134,11 +134,15 @@ pub fn OpenCLSolverWithSize(width: u32, height: u32) type {
             var obstacle_bfr: *[width * height]Coordinate = simstate.alloc_scratch(Coordinate, width * height);
             var total_pixel_count: u32 = 0;
             for (simstate.obstacles.items) |obstacle| {
-                for (obstacle.y..obstacle.y + obstacle.height) |y| {
+                const min_y: usize = @intCast(@max(obstacle.y, 0));
+                const max_y: usize = @intCast(@max(obstacle.y + @as(i32, @intCast(obstacle.height)), 0));
+                for (min_y..max_y) |y| {
                     if (y >= height) {
                         break;
                     }
-                    for (obstacle.x..obstacle.x + obstacle.width) |x| {
+                    const min_x: usize = @intCast(@max(obstacle.x, 0));
+                    const max_x: usize = @intCast(@max(obstacle.x + @as(i32, @intCast(obstacle.width)), 0));
+                    for (min_x..max_x) |x| {
                         if (x >= width) {
                             break;
                         }
@@ -161,7 +165,7 @@ pub fn OpenCLSolverWithSize(width: u32, height: u32) type {
                 total_pixel_count += 1;
             }
 
-            std.debug.print("Total pixel count: {}\n", .{total_pixel_count});
+            // std.debug.print("Total pixel count: {}\n", .{total_pixel_count});
 
             _ = self.queue.enqueueWriteBuffer(Coordinate, self.obstacle_buffer, true, 0, obstacle_bfr, &.{}) catch |err| {
                 std.debug.print("Error writing obstacle buffer: {}\n", .{err});
