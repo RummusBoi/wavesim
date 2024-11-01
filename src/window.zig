@@ -8,7 +8,7 @@ pub const INIT_WIDTH = 1200;
 pub const INIT_HEIGHT = 800;
 const MAX_WIDTH = 2000;
 const MAX_HEIGHT = 2000;
-pub const RENDERBUFFER_SIZE = MAX_WIDTH * MAX_HEIGHT;
+// pub const RENDERBUFFER_SIZE = MAX_WIDTH * MAX_HEIGHT;
 const UI = @import("ui.zig").UI;
 const Appstate = @import("appstate.zig").Appstate;
 const Box = @import("ui_common.zig").Box;
@@ -42,7 +42,7 @@ pub const Window = struct {
             INIT_HEIGHT,
         ) orelse sdl_panic("Creating texture");
 
-        c.SDL_SetWindowMaximumSize(win, MAX_WIDTH, MAX_HEIGHT);
+        // c.SDL_SetWindowMaximumSize(win, MAX_WIDTH, MAX_HEIGHT);
 
         return Window{
             .win = win,
@@ -55,7 +55,7 @@ pub const Window = struct {
     }
 
     pub fn draw_simdata(self: *Window, data: []const f32, stride: usize, zoom_level: f32, window_pos: Coordinate) void {
-        var pixels: *[RENDERBUFFER_SIZE]u32 = undefined;
+        var pixels: []u32 = undefined;
         var width: c_int = self.width;
         if (c.SDL_LockTexture(self.texture, null, @ptrCast(&pixels), &width) != 0) sdl_panic("Locking texture");
         for (0..@intCast(self.height)) |y| {
@@ -108,7 +108,7 @@ pub const Window = struct {
         }
     }
     pub fn draw_filled_box(self: *Window, upper_left: Coordinate, lower_right: Coordinate, r: u32, g: u32, b: u32, a: u32) void {
-        var pixels: *[RENDERBUFFER_SIZE]u32 = undefined;
+        var pixels: []u32 = undefined;
         var width: c_int = self.width;
         const u_left_clamped = upper_left.clamp(0, self.width, 0, self.height);
         const l_right_clamped = lower_right.clamp(0, self.width, 0, self.height);
@@ -125,7 +125,7 @@ pub const Window = struct {
         c.SDL_UnlockTexture(self.texture);
     }
     pub fn draw_box(self: *Window, upper_left: Coordinate, lower_right: Coordinate, r: u32, g: u32, b: u32, a: u32) void {
-        var pixels: *[RENDERBUFFER_SIZE]u32 = undefined;
+        var pixels: []u32 = undefined;
         var width: c_int = self.width;
 
         if (c.SDL_LockTexture(self.texture, null, @ptrCast(&pixels), &width) != 0) sdl_panic("Locking texture");
