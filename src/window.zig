@@ -6,9 +6,7 @@ pub const std = @import("std");
 const Coordinate = @import("common.zig").Coordinate;
 pub const INIT_WIDTH = 1200;
 pub const INIT_HEIGHT = 800;
-const MAX_WIDTH = 2000;
-const MAX_HEIGHT = 2000;
-// pub const RENDERBUFFER_SIZE = MAX_WIDTH * MAX_HEIGHT;
+
 const UI = @import("ui.zig").UI;
 const Appstate = @import("appstate.zig").Appstate;
 const Box = @import("ui_common.zig").Box;
@@ -41,8 +39,6 @@ pub const Window = struct {
             INIT_WIDTH,
             INIT_HEIGHT,
         ) orelse sdl_panic("Creating texture");
-
-        // c.SDL_SetWindowMaximumSize(win, MAX_WIDTH, MAX_HEIGHT);
 
         return Window{
             .win = win,
