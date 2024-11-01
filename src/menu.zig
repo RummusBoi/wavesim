@@ -4,17 +4,15 @@ const UI = @import("ui.zig").UI;
 const Box = @import("ui_common.zig").Box;
 const Button = @import("ui_common.zig").Button;
 const sim_to_camera_coord = @import("window.zig").sim_to_camera_coord;
-const HEIGHT = @import("window.zig").HEIGHT;
-const WIDTH = @import("window.zig").WIDTH;
 const Obstacle = @import("common.zig").Obstacle;
-pub fn add_menu(_: *Simstate, appstate: *Appstate, ui: *UI, box_index: *usize, button_index: *usize) void {
+pub fn add_menu(_: *Simstate, appstate: *Appstate, ui: *UI, window_height: i32, box_index: *usize, button_index: *usize) void {
     if (!appstate.menu_open) {
         return;
     }
 
     const menu_width = 250;
     ui.boxes[box_index.*] = .{
-        .height = HEIGHT,
+        .height = window_height,
         .width = menu_width,
         .x = 0,
         .y = 0,
@@ -23,16 +21,6 @@ pub fn add_menu(_: *Simstate, appstate: *Appstate, ui: *UI, box_index: *usize, b
         },
     };
     box_index.* += 1;
-    // ui.buttons[button_index.*] = .{ .box = .{
-    //     .height = 50,
-    //     .width = 80,
-    //     .x = 10,
-    //     .y = 10,
-    //     .styling = .{
-    //         .fill_color = .{ .r = 50, .g = 50, .b = 50, .a = 255 },
-    //     },
-    // } };
-    // button_index += 1;
     if (appstate.paused) {
         ui.buttons[button_index.*] = PauseButton.init(
             Box.init(
@@ -118,7 +106,7 @@ pub const PauseButton = struct {
     pub fn on_click(_: *Button, _: *Simstate, appstate: *Appstate) void {
         appstate.paused = !appstate.paused;
     }
-    pub fn on_mouse_drag(_: *Button, _: *Simstate, _: *Appstate, _: i32, _: i32) void {}
+    pub fn on_mouse_drag(_: *Button, _: *Simstate, _: *Appstate, _: i32, _: i32, _: i32, _: i32) void {}
 };
 
 pub const CreateObstacleButton = struct {
@@ -141,5 +129,5 @@ pub const CreateObstacleButton = struct {
             obs_height,
         ) catch @panic("Failed to create obstacle");
     }
-    pub fn on_mouse_drag(_: *Button, _: *Simstate, _: *Appstate, _: i32, _: i32) void {}
+    pub fn on_mouse_drag(_: *Button, _: *Simstate, _: *Appstate, _: i32, _: i32, _: i32, _: i32) void {}
 };

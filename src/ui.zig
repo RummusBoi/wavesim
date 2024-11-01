@@ -14,13 +14,13 @@ const Color = @import("ui_common.zig").Color;
 const add_menu = @import("menu.zig").add_menu;
 pub fn generate_ui_with_size(width: comptime_int, height: comptime_int) type {
     return struct {
-        pub fn update_ui(simstate: *Simstate, appstate: *Appstate, ui: *UI) void {
+        pub fn update_ui(simstate: *Simstate, appstate: *Appstate, ui: *UI, window_size: struct { width: i32, height: i32 }) void {
             var box_index: usize = 0;
             var button_index: usize = 0;
 
             for (simstate.obstacles.items) |obstacle| {
-                const upper_left = sim_to_camera_coord(appstate.zoom_level, appstate.window_pos, .{ .x = @intCast(obstacle.x), .y = @intCast(obstacle.y) });
-                const lower_right = sim_to_camera_coord(appstate.zoom_level, appstate.window_pos, .{ .x = obstacle.x + @as(i32, @intCast(obstacle.width)), .y = obstacle.y + @as(i32, @intCast(obstacle.height)) });
+                const upper_left = sim_to_camera_coord(appstate.zoom_level, appstate.window_pos, .{ .width = window_size.width, .height = window_size.height }, .{ .x = @intCast(obstacle.x), .y = @intCast(obstacle.y) });
+                const lower_right = sim_to_camera_coord(appstate.zoom_level, appstate.window_pos, .{ .width = window_size.width, .height = window_size.height }, .{ .x = obstacle.x + @as(i32, @intCast(obstacle.width)), .y = obstacle.y + @as(i32, @intCast(obstacle.height)) });
                 const is_selected = if (appstate.selected_entity) |selected_entity| selected_entity == obstacle.id else false;
                 const fill_color: Color = if (is_selected) .{ .r = 255, .g = 0, .b = 0, .a = 255 } else .{ .r = 0, .g = 0, .b = 0, .a = 255 };
 
@@ -50,8 +50,8 @@ pub fn generate_ui_with_size(width: comptime_int, height: comptime_int) type {
                 button_index += 1;
             }
 
-            const boundary_upper_left = sim_to_camera_coord(appstate.zoom_level, appstate.window_pos, .{ .x = 0, .y = 0 });
-            const boundary_lower_right = sim_to_camera_coord(appstate.zoom_level, appstate.window_pos, .{ .x = @intCast(width), .y = @intCast(height) });
+            const boundary_upper_left = sim_to_camera_coord(appstate.zoom_level, appstate.window_pos, .{ .width = window_size.width, .height = window_size.height }, .{ .x = 0, .y = 0 });
+            const boundary_lower_right = sim_to_camera_coord(appstate.zoom_level, appstate.window_pos, .{ .width = window_size.width, .height = window_size.height }, .{ .x = @intCast(width), .y = @intCast(height) });
 
             ui.boxes[box_index] = Box.init(
                 boundary_upper_left.x,
@@ -73,7 +73,7 @@ pub fn generate_ui_with_size(width: comptime_int, height: comptime_int) type {
             box_index += 1;
 
             // Add pause button on the left!
-            add_menu(simstate, appstate, ui, &box_index, &button_index);
+            add_menu(simstate, appstate, ui, window_size.height, &box_index, &button_index);
             ui.button_count = button_index;
             ui.box_count = box_index;
         }

@@ -43,13 +43,13 @@ pub const Color = struct {
 pub const Button = struct {
     payload: [16]u8 = undefined,
     on_click_inner: *const fn (self: *Button, _: *Simstate, appstate: *Appstate) void,
-    on_mouse_drag_inner: *const fn (self: *Button, _: *Simstate, appstate: *Appstate, xrel: i32, yrel: i32) void,
+    on_mouse_drag_inner: *const fn (self: *Button, _: *Simstate, appstate: *Appstate, window_width: i32, window_height: i32, xrel: i32, yrel: i32) void,
     box: Box,
     pub fn on_click(self: *Button, simstate: *Simstate, appstate: *Appstate) void {
         (self.on_click_inner)(self, simstate, appstate);
     }
-    pub fn on_mouse_drag(self: *Button, simstate: *Simstate, appstate: *Appstate, xrel: i32, yrel: i32) void {
-        (self.on_mouse_drag_inner)(self, simstate, appstate, xrel, yrel);
+    pub fn on_mouse_drag(self: *Button, simstate: *Simstate, appstate: *Appstate, window_width: i32, window_height: i32, xrel: i32, yrel: i32) void {
+        (self.on_mouse_drag_inner)(self, simstate, appstate, window_width, window_height, xrel, yrel);
     }
 };
 
@@ -77,12 +77,12 @@ pub const ObstacleButton = struct {
         appstate.selected_entity = id;
     }
 
-    pub fn on_mouse_drag(btn: *Button, simstate: *Simstate, appstate: *Appstate, xrel: i32, yrel: i32) void {
+    pub fn on_mouse_drag(btn: *Button, simstate: *Simstate, appstate: *Appstate, window_width: i32, window_height: i32, xrel: i32, yrel: i32) void {
         const id = std.mem.readInt(u32, btn.payload[0..4], .big);
 
         if (simstate.get_obstacle_by_id(id)) |obstacle| {
-            const sim_drag_start = camera_to_sim_coord(appstate.zoom_level, appstate.window_pos, .{ .x = @intCast(appstate.mouse_pos.x), .y = @intCast(appstate.mouse_pos.y) });
-            const sim_drag_end = camera_to_sim_coord(appstate.zoom_level, appstate.window_pos, .{ .x = @intCast(appstate.mouse_pos.x + xrel), .y = @intCast(appstate.mouse_pos.y + yrel) });
+            const sim_drag_start = camera_to_sim_coord(appstate.zoom_level, appstate.window_pos, .{ .width = window_width, .height = window_height }, .{ .x = @intCast(appstate.mouse_pos.x), .y = @intCast(appstate.mouse_pos.y) });
+            const sim_drag_end = camera_to_sim_coord(appstate.zoom_level, appstate.window_pos, .{ .width = window_width, .height = window_height }, .{ .x = @intCast(appstate.mouse_pos.x + xrel), .y = @intCast(appstate.mouse_pos.y + yrel) });
             const sim_drag_delta = sim_drag_end.sub(sim_drag_start);
 
             obstacle.x = @intCast(@as(i32, @intCast(obstacle.x)) + @as(i32, @intCast(sim_drag_delta.x)));

@@ -6,9 +6,10 @@ const pow = @import("std").math.pow;
 const OpenCLSolverWithSize = @import("opencl_solver.zig").OpenCLSolverWithSize;
 const UI = @import("ui.zig").UI;
 const std = @import("std");
+const Window = @import("window.zig").Window;
 pub fn handle_events_with_size(width: comptime_int, height: comptime_int) type {
     return struct {
-        pub fn handle_events(ui: *UI, appstate: *Appstate, simstate: *Simstate, solver: *OpenCLSolverWithSize(width, height)) void {
+        pub fn handle_events(ui: *UI, appstate: *Appstate, simstate: *Simstate, window: *Window, solver: *OpenCLSolverWithSize(width, height)) void {
             var event: c.SDL_Event = undefined;
             appstate.updates = .{ .simstate = false };
             const simdata_scratch = simstate.alloc_scratch(f32, width * height);
@@ -64,7 +65,7 @@ pub fn handle_events_with_size(width: comptime_int, height: comptime_int) type {
                                 appstate.window_pos.x -= @intFromFloat(@as(f32, @floatFromInt(xrel)) * appstate.zoom_level);
                                 appstate.window_pos.y -= @intFromFloat(@as(f32, @floatFromInt(yrel)) * appstate.zoom_level);
                             } else if (ui.find_intersecting_button(appstate.mouse_pos.x, appstate.mouse_pos.y)) |button| {
-                                button.on_mouse_drag(simstate, appstate, xrel, yrel);
+                                button.on_mouse_drag(simstate, appstate, window.width, window.height, xrel, yrel);
                             }
                         }
                         appstate.mouse_pos.x = event.motion.x;
@@ -148,6 +149,11 @@ pub fn handle_events_with_size(width: comptime_int, height: comptime_int) type {
                         }
                         if (event.key.keysym.sym == c.SDLK_MINUS) {
                             appstate.button_states.is_holding_zoom_out = false;
+                        }
+                    },
+                    c.SDL_WINDOWEVENT => {
+                        if (event.window.event == c.SDL_WINDOWEVENT_RESIZED) {
+                            window.on_window_resize(event.window.data1, event.window.data2);
                         }
                     },
                     else => {},
