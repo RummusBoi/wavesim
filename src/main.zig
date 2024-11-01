@@ -6,8 +6,7 @@ const pow = std.math.pow;
 const Window = @import("window.zig").Window;
 const c = @import("window.zig").c;
 const RENDERBUFFER_SIZE = @import("window.zig").RENDERBUFFER_SIZE;
-const WIDTH = @import("window.zig").WIDTH;
-const HEIGHT = @import("window.zig").HEIGHT;
+
 const OpenCLSolverWithSize = @import("opencl_solver.zig").OpenCLSolverWithSize;
 const Obstacle = @import("common.zig").Obstacle;
 const Oscillator = @import("common.zig").Oscillator;
@@ -19,10 +18,12 @@ const Appstate = @import("appstate.zig").Appstate;
 const sim_to_camera_coord = @import("window.zig").sim_to_camera_coord;
 const UI = @import("ui.zig").UI;
 const generate_ui = @import("ui.zig").generate_ui_with_size(width, height).update_ui;
+const INIT_HEIGHT = @import("window.zig").INIT_HEIGHT;
+const INIT_WIDTH = @import("window.zig").INIT_WIDTH;
 pub fn main() !void {
     const allocator = std.heap.c_allocator;
 
-    var window = try Window.init(WIDTH, HEIGHT, std.heap.c_allocator);
+    var window = try Window.init(std.heap.c_allocator);
     const hole_width = 200;
     const hole_start = height / 2 - hole_width / 2;
 
@@ -41,7 +42,7 @@ pub fn main() !void {
         _ = try simstate.create_oscillator(
             3500,
             oscillator_start + @as(u32, @intFromFloat((oscillator_end - oscillator_start) * i_f / oscillator_count_f)),
-            1000,
+            100,
             &[_]f32{
                 30,
             },
@@ -56,13 +57,13 @@ pub fn main() !void {
     var last_frame = std.time.milliTimestamp();
 
     const simdata_scratch = simstate.alloc_scratch(f32, width * height);
-    var appstate = Appstate{ .zoom_level = @max(@as(f32, @floatFromInt(width)) / WIDTH, @as(f32, @floatFromInt(height)) / HEIGHT) };
+    var appstate = Appstate{ .zoom_level = @max(@as(f32, @floatFromInt(width)) / @as(f32, @floatFromInt(INIT_WIDTH)), @as(f32, @floatFromInt(height)) / @as(f32, @floatFromInt(INIT_HEIGHT))) };
     var ui: UI = UI{};
     const do_frame_prints = false;
     while (appstate.keep_going) {
         iter += 1;
 
-        handle_events(&ui, &appstate, &simstate, &solver);
+        handle_events(&ui, &appstate, &simstate, &window, &solver);
         if (appstate.updates.simstate) {
             solver.on_simstate_update(&simstate);
         }
@@ -87,7 +88,7 @@ pub fn main() !void {
         const start_present_time = std.time.milliTimestamp();
 
         window.draw_simdata(solver.read_simdata(simdata_scratch), width, appstate.zoom_level, appstate.window_pos);
-        generate_ui(&simstate, &appstate, &ui);
+        generate_ui(&simstate, &appstate, &ui, .{ .width = window.width, .height = window.height });
         window.draw_ui(&ui);
 
         window.present();

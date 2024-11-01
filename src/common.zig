@@ -1,4 +1,6 @@
 const std = @import("std");
+const WIDTH = @import("window.zig").WIDTH;
+const HEIGHT = @import("window.zig").HEIGHT;
 pub const Coordinate = struct {
     x: i32,
     y: i32,
@@ -62,8 +64,8 @@ pub const Coordinate = struct {
 
 pub const Obstacle = struct {
     id: u32,
-    x: u32,
-    y: u32,
+    x: i32,
+    y: i32,
     width: u32,
     height: u32,
 };

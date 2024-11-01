@@ -12,9 +12,11 @@ pub fn SimStateWithSize(simwidth: u32, simheight: u32) type {
         obstacles: std.ArrayList(Obstacle),
         oscillators: std.ArrayList(Oscillator),
         scratch_buffer: *[simwidth * simheight * 8]u8,
+        width: usize = simwidth,
+        height: usize = simheight,
         id: u32 = 0,
 
-        pub fn create_obstacle(self: *@This(), x: u32, y: u32, w: u32, h: u32) !Obstacle {
+        pub fn create_obstacle(self: *@This(), x: i32, y: i32, w: u32, h: u32) !Obstacle {
             const id = self.id;
             self.id += 1;
             const obstacle = Obstacle{ .id = id, .x = x, .y = y, .width = w, .height = h };
@@ -28,6 +30,21 @@ pub fn SimStateWithSize(simwidth: u32, simheight: u32) type {
             const oscillator = try Oscillator.init(id, x, y, amplitude, wavelengths);
             try self.oscillators.append(oscillator);
             return oscillator;
+        }
+
+        pub fn remove_entity_by_id(self: *@This(), id: u32) void {
+            for (0..self.obstacles.items.len) |i| {
+                if (self.obstacles.items[i].id == id) {
+                    _ = self.obstacles.swapRemove(i);
+                    return;
+                }
+            }
+            for (0..self.oscillators.items.len) |i| {
+                if (self.obstacles.items[i].id == id) {
+                    _ = self.oscillators.swapRemove(i);
+                    return;
+                }
+            }
         }
 
         pub fn alloc_scratch(self: *@This(), t: type, len: comptime_int) *[len]t {
