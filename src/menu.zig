@@ -93,10 +93,10 @@ pub fn add_menu(_: *Simstate, appstate: *Appstate, ui: *UI, box_index: *usize, b
                 .fill_color = .{ .r = 50, .g = 50, .b = 50, .a = 255 },
             },
             .{
-                .fill_color = .{ .r = 50, .g = 50, .b = 50, .a = 255 },
+                .fill_color = .{ .r = 70, .g = 70, .b = 70, .a = 255 },
             },
             .{
-                .fill_color = .{ .r = 50, .g = 50, .b = 50, .a = 255 },
+                .fill_color = .{ .r = 90, .g = 90, .b = 90, .a = 255 },
             },
             appstate.mouse_pos,
             appstate.button_states.is_holding_left_button,
