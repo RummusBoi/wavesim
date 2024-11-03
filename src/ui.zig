@@ -187,7 +187,7 @@ pub const Text = struct {
     font_color: c.SDL_Color,
 
     pub fn init(x: i32, y: i32, contents: [*c]const u8, font_size: u8, font_color: c.SDL_Color) Text {
-        return Text {
+        return Text{
             .x = x,
             .y = y,
             .contents = contents,

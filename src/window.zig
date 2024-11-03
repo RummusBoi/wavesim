@@ -206,12 +206,7 @@ pub const Window = struct {
             sdl_panic("Getting text size");
         }
 
-        const surface = c.TTF_RenderText_Shaded(
-            font,
-            @ptrCast(text.contents),
-            text.font_color,
-            .{ .a = 1, .r = 0, .g = 0, .b = 0 }
-        );
+        const surface = c.TTF_RenderText_Shaded(font, @ptrCast(text.contents), text.font_color, .{ .a = 1, .r = 0, .g = 0, .b = 0 });
         defer c.SDL_FreeSurface(surface);
 
         const texture = c.SDL_CreateTextureFromSurface(self.renderer, surface) orelse {
@@ -223,7 +218,6 @@ pub const Window = struct {
         return texture;
     }
 };
-
 
 fn sdl_panic(base_msg: []const u8) noreturn {
     const message = c.SDL_GetError() orelse @panic("Unknown error in SDL.");
