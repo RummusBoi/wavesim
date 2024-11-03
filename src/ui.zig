@@ -69,7 +69,7 @@ pub fn generate_ui_with_size(width: comptime_int, height: comptime_int) type {
                 .x = 50,
                 .y = 50,
                 .contents = "hej med dig",
-                .font_size = 18,
+                .font_size = 40,
                 .font_color = c.SDL_Color{
                     .r = 255,
                     .g = 0,

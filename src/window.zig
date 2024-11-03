@@ -18,7 +18,6 @@ const ArrayList = std.ArrayList;
 
 pub const Window = struct {
     win: *c.SDL_Window,
-    font: *c.TTF_Font,
     renderer: *c.SDL_Renderer,
     allocator: std.mem.Allocator,
     texture: *c.SDL_Texture,
@@ -45,15 +44,11 @@ pub const Window = struct {
             HEIGHT,
         ) orelse sdl_panic("Creating texture");
 
-        const rw_ops = c.SDL_RWFromConstMem(font_file_content, font_file_content.len) orelse sdl_panic("Interpreting font");
-        const font: *c.TTF_Font = c.TTF_OpenFontRW(rw_ops, 1, 13) orelse sdl_panic("Loading font");
-
         return Window{
             .win = win,
             .renderer = renderer,
             .allocator = allocator,
             .texture = texture,
-            .font = font,
             .cached_textures_for_text = ArrayList(CachedTexture).init(allocator),
             // .window_pos = Coordinate{ .x = @intFromFloat(WIDTH / 2 * zoom_level), .y = @intFromFloat(HEIGHT / 2 * zoom_level) },
             // .zoom_level = zoom_level,
@@ -201,15 +196,18 @@ pub const Window = struct {
 
         std.debug.print("Calculating texture...\n", .{});
 
+        const rw_ops = c.SDL_RWFromConstMem(font_file_content, font_file_content.len) orelse sdl_panic("Interpreting font");
+        const font: *c.TTF_Font = c.TTF_OpenFontRW(rw_ops, 1, text.font_size) orelse sdl_panic("Loading font");
+
         var w: c_int = undefined;
         var h: c_int = undefined;
 
-        if (c.TTF_SizeText(self.font, text.contents, &w, &h) != 0) {
+        if (c.TTF_SizeText(font, text.contents, &w, &h) != 0) {
             sdl_panic("Getting text size");
         }
 
         const surface = c.TTF_RenderText_Shaded(
-            self.font,
+            font,
             @ptrCast(text.contents),
             text.font_color,
             .{ .a = 1, .r = 0, .g = 0, .b = 0 }
