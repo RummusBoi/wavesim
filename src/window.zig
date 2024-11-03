@@ -52,6 +52,7 @@ pub const Window = struct {
             .cached_textures_for_text = ArrayList(CachedTexture).init(allocator),
             // .window_pos = Coordinate{ .x = @intFromFloat(WIDTH / 2 * zoom_level), .y = @intFromFloat(HEIGHT / 2 * zoom_level) },
             // .zoom_level = zoom_level,
+
         };
     }
 
