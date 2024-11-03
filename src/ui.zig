@@ -69,15 +69,15 @@ pub fn generate_ui_with_size(width: comptime_int, height: comptime_int) type {
                 .x = 50,
                 .y = 50,
                 .contents = "hej med dig",
-                .font_size = 11,
-                .styling = TextStyling{
-                    .fill_color = null,
-                    .border = null,
+                .font_size = 18,
+                .font_color = c.SDL_Color{
+                    .r = 255,
+                    .g = 0,
+                    .b = 0,
                 },
             };
 
             if (appstate.paused) {
-
                 std.debug.print("Contents: {s}", .{ui.texts[0].contents});
 
                 ui.buttons[button_index] = Button{
@@ -188,25 +188,7 @@ pub const Text = struct {
     y: i32,
     contents: [*c]const u8,
     font_size: u8,
-    styling: TextStyling,
-};
-
-pub const TextStyling = struct {
-    fill_color: ?struct {
-        r: u8,
-        g: u8,
-        b: u8,
-        a: u8,
-    },
-    border: ?struct {
-        color: struct {
-            r: u8,
-            g: u8,
-            b: u8,
-            a: u8,
-        },
-        width: u32,
-    },
+    font_color: c.SDL_Color,
 };
 
 pub const BoxStyling = struct {
@@ -266,33 +248,3 @@ fn join_strs(s1: []const u8, s2: []const u8, buf: []u8) void {
         buf[s1.len + index] = char;
     }
 }
-
-//        var w: c_int = undefined;
-//        var h: c_int = undefined;
-//
-//        self.scratch_buffer.clearRetainingCapacity();
-//        try self.scratch_buffer.appendSlice(value);
-//        try self.scratch_buffer.append(0);
-//        if (c.TTF_SizeText(self.font, @ptrCast(self.scratch_buffer.items), &w, &h) != 0) {
-//            sdl_panic("Getting text size");
-//        }
-//        if (value.len > 0) {
-//            const texture_res = self.find_cached_texture_for_value(value, "cell");
-//            const texture = texture_res orelse blk: {
-//                const font_color: c.SDL_Color = .{ .r = 0, .g = 0, .b = 0 };
-//
-//                const surface = c.TTF_RenderText_Shaded(self.font, @ptrCast(self.scratch_buffer.items), font_color, .{ .a = 255, .r = 255, .g = 255, .b = 255 });
-//                defer c.SDL_FreeSurface(surface);
-//                const texture = c.SDL_CreateTextureFromSurface(self.renderer, surface) orelse {
-//                    sdl_panic("Creating text texture.");
-//                };
-//                self.cache_texture(texture, value, "cell") catch {
-//                    std.debug.print("Could not cache texture.", .{});
-//                };
-//                break :blk texture;
-//            };
-//            const dest_rect: c.SDL_Rect = .{ .x = outer.x + 3, .y = outer.y + 3, .w = w, .h = h };
-//            if (c.SDL_RenderCopy(self.renderer, texture, null, &dest_rect) != 0) {
-//                sdl_panic("Could not render");
-//            }
-//        }

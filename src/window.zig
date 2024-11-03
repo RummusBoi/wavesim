@@ -5,20 +5,24 @@ pub const c = @cImport({
     @cInclude("SDL2/SDL_ttf.h");
 });
 pub const std = @import("std");
-const Coordinate = @import("common.zig").Coordinate;
-const Text = @import("ui.zig").Text;
 pub const WIDTH = 1200;
 pub const HEIGHT = 800;
 pub const RENDERBUFFER_SIZE = HEIGHT * WIDTH;
+
+const Coordinate = @import("common.zig").Coordinate;
+const Text = @import("ui.zig").Text;
 const UI = @import("ui.zig").UI;
 const Appstate = @import("appstate.zig").Appstate;
 const Box = @import("ui.zig").Box;
+const ArrayList = std.ArrayList;
+
 pub const Window = struct {
     win: *c.SDL_Window,
     font: *c.TTF_Font,
     renderer: *c.SDL_Renderer,
     allocator: std.mem.Allocator,
     texture: *c.SDL_Texture,
+    cached_textures_for_text: ArrayList(CachedTexture),
 
     pub fn init(width: u32, height: u32, allocator: std.mem.Allocator) !Window {
         _ = c.SDL_Init(c.SDL_INIT_EVERYTHING);
@@ -50,13 +54,13 @@ pub const Window = struct {
             .allocator = allocator,
             .texture = texture,
             .font = font,
+            .cached_textures_for_text = ArrayList(CachedTexture).init(allocator),
             // .window_pos = Coordinate{ .x = @intFromFloat(WIDTH / 2 * zoom_level), .y = @intFromFloat(HEIGHT / 2 * zoom_level) },
             // .zoom_level = zoom_level,
         };
     }
 
     pub fn draw_simdata(self: *Window, data: []const f32, stride: usize, zoom_level: f32, window_pos: Coordinate) void {
-        std.debug.print("zoom level: {}\n", .{zoom_level});
         var pixels: *[RENDERBUFFER_SIZE]u32 = undefined;
         var width: c_int = WIDTH;
         if (c.SDL_LockTexture(self.texture, null, @ptrCast(&pixels), &width) != 0) sdl_panic("Locking texture");
@@ -67,10 +71,7 @@ pub const Window = struct {
                     window_pos,
                     .{ .x = @intCast(x), .y = @intCast(y) },
                 );
-                const simval = if (simdata_coords.x > 0
-                    and simdata_coords.x < stride
-                    and simdata_coords.y > 0
-                    and simdata_coords.y < data.len / stride) data[@as(usize, @intCast(simdata_coords.y)) * stride + @as(usize, @intCast(simdata_coords.x))] else 0;
+                const simval = if (simdata_coords.x > 0 and simdata_coords.x < stride and simdata_coords.y > 0 and simdata_coords.y < data.len / stride) data[@as(usize, @intCast(simdata_coords.y)) * stride + @as(usize, @intCast(simdata_coords.x))] else 0;
                 const clamped = clamp_float(simval);
 
                 const color: u32 = @intFromFloat(clamped);
@@ -111,58 +112,6 @@ pub const Window = struct {
         for (ui.buttons[0..ui.button_count]) |button| {
             self.draw_ui_box(button.box);
         }
-        for (ui.texts[0..ui.text_count]) |text| {
-            self.draw_text(text);
-        }
-    }
-    pub fn draw_text(self: *Window, text: Text) void {
-        const w: c_int = undefined;
-        const h: c_int = undefined;
-
-        std.debug.print("Contents: {s}\n", .{text.contents});
-        std.debug.print("Font: {s}\n", .{self.font});
-
-        if (c.TTF_SizeText(self.font, text.contents, w, h) != 0) {
-            sdl_panic("Getting text size");
-        }
-
-        std.debug.print("Size: {}, {}\n", .{w, h});
-        std.debug.print("Rect: {d}, {d}\n", .{text.x, text.y});
-
-        const font_color: c.SDL_Color = .{ .r = 255, .g = 255, .b = 255 };
-
-        const surface = c.TTF_RenderText_Shaded(
-            self.font,
-            @ptrCast(text.contents),
-            font_color,
-            .{
-                .a = 255,
-                .r = 255,
-                .g = 255,
-                .b = 255
-            }
-        );
-
-        defer c.SDL_FreeSurface(surface);
-
-        const dest_rect: c.SDL_Rect = .{
-            .x = 50,
-            .y = 50,
-            .w = 50,
-            .h = 50
-        };
-
-        var pixels: *[RENDERBUFFER_SIZE]u32 = undefined;
-
-        std.debug.print("Segfault in three, two, one...\n", .{});
-
-        if (c.SDL_LockTexture(self.texture, null, @ptrCast(&pixels), WIDTH) != 0) sdl_panic("Locking texture");
-
-        if (c.SDL_RenderCopy(self.renderer, self.texture, null, &dest_rect) != 0) {
-            sdl_panic("Couldn't render");
-        }
-
-        c.SDL_UnlockTexture(self.texture);
     }
     pub fn draw_filled_box(self: *Window, upper_left: Coordinate, lower_right: Coordinate, r: u32, g: u32, b: u32, a: u32) void {
         var pixels: *[RENDERBUFFER_SIZE]u32 = undefined;
@@ -232,14 +181,53 @@ pub const Window = struct {
 
         c.SDL_UnlockTexture(self.texture);
     }
-    pub fn present(self: *Window) void {
+    pub fn present(self: *Window, ui: *UI) void {
         if (c.SDL_RenderCopy(self.renderer, self.texture, null, null) != 0) sdl_panic("Copying texture to renderer");
+        for (ui.texts[0..ui.text_count]) |text| {
+            var size: c.SDL_Point = undefined;
+            const texture = self.get_text_texture(&text);
+            if (c.SDL_QueryTexture(texture, null, null, &size.x, &size.y) != 0) sdl_panic("Querying texture for size");
+            const dest_rect: c.SDL_Rect = .{ .x = text.x + 3, .y = text.y + 3, .w = size.x, .h = size.y };
+            if (c.SDL_RenderCopy(self.renderer, self.get_text_texture(&text), null, &dest_rect) != 0) sdl_panic("Copying texture to renderer");
+        }
         c.SDL_RenderPresent(self.renderer);
+    }
+
+    // Will also handle the case where the text is cached.
+    pub fn get_text_texture(self: *Window, text: *const Text) *c.SDL_Texture {
+        for (self.cached_textures_for_text.items) |t| {
+            if (t.text.contents == text.contents) return t.texture;
+        }
+
+        std.debug.print("Calculating texture...\n", .{});
+
+        var w: c_int = undefined;
+        var h: c_int = undefined;
+
+        if (c.TTF_SizeText(self.font, text.contents, &w, &h) != 0) {
+            sdl_panic("Getting text size");
+        }
+
+        const surface = c.TTF_RenderText_Shaded(
+            self.font,
+            @ptrCast(text.contents),
+            text.font_color,
+            .{ .a = 1, .r = 0, .g = 0, .b = 0 }
+        );
+        defer c.SDL_FreeSurface(surface);
+
+        const texture = c.SDL_CreateTextureFromSurface(self.renderer, surface) orelse {
+            sdl_panic("Creating text texture");
+        };
+
+        self.cached_textures_for_text.append(.{ .texture = texture, .text = text.* }) catch sdl_panic("Caching texture");
+
+        return texture;
     }
 };
 
+
 fn sdl_panic(base_msg: []const u8) noreturn {
-    std.debug.print("SDL panic detected.\n", .{});
     const message = c.SDL_GetError() orelse @panic("Unknown error in SDL.");
 
     var ptr: u32 = 0;
@@ -305,4 +293,9 @@ pub const HoverState = enum {
         if (hovering) return HoverState.Hover;
         return HoverState.None;
     }
+};
+
+const CachedTexture = struct {
+    texture: *c.SDL_Texture,
+    text: Text,
 };
