@@ -6,10 +6,22 @@ const Coordinate = @import("common.zig").Coordinate;
 const sim_to_camera_coord = @import("window.zig").sim_to_camera_coord;
 const camera_to_sim_coord = @import("window.zig").camera_to_sim_coord;
 const HoverState = @import("window.zig").HoverState;
+
+const Color = .{
+    .White = c.SDL_Color{ .a = 255, .r = 255, .g = 255, .b = 255 },
+    .Black = c.SDL_Color{ .a = 255, .r = 0, .g = 0, .b = 0 },
+    .Red = c.SDL_Color{ .a = 255, .r = 255, .g = 0, .b = 0 },
+    .Green = c.SDL_Color{ .a = 255, .r = 0, .g = 255, .b = 0 },
+    .Blue = c.SDL_Color{ .a = 255, .r = 0, .g = 0, .b = 255 },
+};
+
 pub fn generate_ui_with_size(width: comptime_int, height: comptime_int) type {
     return struct {
         pub fn update_ui(simstate: *Simstate, appstate: *Appstate, ui: *UI) void {
             var box_index: usize = 0;
+            var button_index: usize = 0;
+            var text_index: usize = 0;
+
             for (simstate.obstacles.items) |obstacle| {
                 const upper_left = sim_to_camera_coord(appstate.zoom_level, appstate.window_pos, .{ .x = @intCast(obstacle.x), .y = @intCast(obstacle.y) });
                 const lower_right = sim_to_camera_coord(appstate.zoom_level, appstate.window_pos, .{ .x = @intCast(obstacle.x + obstacle.width), .y = @intCast(obstacle.y + obstacle.height) });
@@ -59,27 +71,7 @@ pub fn generate_ui_with_size(width: comptime_int, height: comptime_int) type {
             box_index += 1;
             ui.box_count = box_index;
 
-            // Add pause button on the left!
-            var button_index: usize = 0;
-
-            // Add a sample text! Why are we yelling!
-            ui.text_count = 1;
-
-            ui.texts[0] = Text{
-                .x = 50,
-                .y = 50,
-                .contents = "hej med dig",
-                .font_size = 40,
-                .font_color = c.SDL_Color{
-                    .r = 255,
-                    .g = 0,
-                    .b = 0,
-                },
-            };
-
             if (appstate.paused) {
-                std.debug.print("Contents: {s}", .{ui.texts[0].contents});
-
                 ui.buttons[button_index] = Button{
                     .box = Box.init(
                         0,
@@ -103,6 +95,7 @@ pub fn generate_ui_with_size(width: comptime_int, height: comptime_int) type {
                     ),
                     .on_click = on_pause_button_click,
                 };
+                ui.texts[text_index] = Text.init(0, 0, "Continue", 20, Color.White);
             } else {
                 ui.buttons[button_index] = Button{
                     .box = Box.init(
@@ -127,10 +120,13 @@ pub fn generate_ui_with_size(width: comptime_int, height: comptime_int) type {
                     ),
                     .on_click = on_pause_button_click,
                 };
+                ui.texts[text_index] = Text.init(0, 0, "Pause", 20, Color.White);
             }
 
+            text_index += 1;
             button_index += 1;
             ui.button_count = button_index;
+            ui.text_count = text_index;
         }
     };
 }
@@ -189,6 +185,16 @@ pub const Text = struct {
     contents: [*c]const u8,
     font_size: u8,
     font_color: c.SDL_Color,
+
+    pub fn init(x: i32, y: i32, contents: [*c]const u8, font_size: u8, font_color: c.SDL_Color) Text {
+        return Text {
+            .x = x,
+            .y = y,
+            .contents = contents,
+            .font_size = font_size,
+            .font_color = font_color,
+        };
+    }
 };
 
 pub const BoxStyling = struct {
