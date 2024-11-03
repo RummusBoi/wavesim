@@ -7,7 +7,7 @@ const sim_to_camera_coord = @import("window.zig").sim_to_camera_coord;
 const camera_to_sim_coord = @import("window.zig").camera_to_sim_coord;
 const HoverState = @import("window.zig").HoverState;
 
-const Color = .{
+const SampleColors = .{
     .White = c.SDL_Color{ .a = 255, .r = 255, .g = 255, .b = 255 },
     .Black = c.SDL_Color{ .a = 255, .r = 0, .g = 0, .b = 0 },
     .Red = c.SDL_Color{ .a = 255, .r = 255, .g = 0, .b = 0 },
@@ -102,10 +102,8 @@ pub fn generate_ui_with_size(width: comptime_int, height: comptime_int) type {
                         appstate.mouse_pos,
                         appstate.button_states.is_holding_left_button,
                     ),
-                    .on_click = on_pause_button_click,
-                };
-                ui.texts[text_index] = Text.init(0, 0, "Continue", 20, Color.White);
                 );
+                ui.texts[text_index] = Text.init(0, 0, "Continue", 20, SampleColors.White);
             } else {
                 ui.buttons[button_index] = PauseButton.init(
                     Box.init(
@@ -128,10 +126,8 @@ pub fn generate_ui_with_size(width: comptime_int, height: comptime_int) type {
                         appstate.mouse_pos,
                         appstate.button_states.is_holding_left_button,
                     ),
-                    .on_click = on_pause_button_click,
-                };
-                ui.texts[text_index] = Text.init(0, 0, "Pause", 20, Color.White);
                 );
+                ui.texts[text_index] = Text.init(0, 0, "Pause", 20, SampleColors.White);
             }
 
             text_index += 1;
