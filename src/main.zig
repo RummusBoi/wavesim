@@ -90,7 +90,7 @@ pub fn main() !void {
         generate_ui(&simstate, &appstate, &ui);
         window.draw_ui(&ui);
 
-        window.present();
+        window.present(&ui);
 
         const end_present_time = std.time.milliTimestamp();
         if (do_frame_prints) std.debug.print("Present time: {}\n", .{end_present_time - start_present_time});

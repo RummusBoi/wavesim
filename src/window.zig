@@ -1,20 +1,27 @@
+const font_file_content = @embedFile("font/NaturalMono-Regular.ttf");
+
 pub const c = @cImport({
     @cInclude("SDL2/SDL.h");
     @cInclude("SDL2/SDL_ttf.h");
 });
 pub const std = @import("std");
-const Coordinate = @import("common.zig").Coordinate;
 pub const WIDTH = 1200;
 pub const HEIGHT = 800;
 pub const RENDERBUFFER_SIZE = HEIGHT * WIDTH;
+
+const Coordinate = @import("common.zig").Coordinate;
+const Text = @import("ui.zig").Text;
 const UI = @import("ui.zig").UI;
 const Appstate = @import("appstate.zig").Appstate;
 const Box = @import("ui.zig").Box;
+const ArrayList = std.ArrayList;
+
 pub const Window = struct {
     win: *c.SDL_Window,
     renderer: *c.SDL_Renderer,
     allocator: std.mem.Allocator,
     texture: *c.SDL_Texture,
+    cached_textures_for_text: ArrayList(CachedTexture),
 
     pub fn init(width: u32, height: u32, allocator: std.mem.Allocator) !Window {
         _ = c.SDL_Init(c.SDL_INIT_EVERYTHING);
@@ -42,6 +49,10 @@ pub const Window = struct {
             .renderer = renderer,
             .allocator = allocator,
             .texture = texture,
+            .cached_textures_for_text = ArrayList(CachedTexture).init(allocator),
+            // .window_pos = Coordinate{ .x = @intFromFloat(WIDTH / 2 * zoom_level), .y = @intFromFloat(HEIGHT / 2 * zoom_level) },
+            // .zoom_level = zoom_level,
+
         };
     }
 
@@ -105,6 +116,7 @@ pub const Window = struct {
         const l_right_clamped = lower_right.clamp(0, WIDTH, 0, HEIGHT);
 
         if (c.SDL_LockTexture(self.texture, null, @ptrCast(&pixels), &width) != 0) sdl_panic("Locking texture");
+
         for (@intCast(u_left_clamped.x)..@intCast(l_right_clamped.x)) |x| {
             for (@intCast(u_left_clamped.y)..@intCast(l_right_clamped.y)) |y| {
                 const index: i32 = @intCast(y * WIDTH + x);
@@ -165,14 +177,43 @@ pub const Window = struct {
 
         c.SDL_UnlockTexture(self.texture);
     }
-    pub fn present(self: *Window) void {
+    pub fn present(self: *Window, ui: *UI) void {
         if (c.SDL_RenderCopy(self.renderer, self.texture, null, null) != 0) sdl_panic("Copying texture to renderer");
+        for (ui.texts[0..ui.text_count]) |text| {
+            var size: c.SDL_Point = undefined;
+            const texture = self.get_text_texture(&text);
+            if (c.SDL_QueryTexture(texture, null, null, &size.x, &size.y) != 0) sdl_panic("Querying texture for size");
+            const dest_rect: c.SDL_Rect = .{ .x = text.x + 3, .y = text.y + 3, .w = size.x, .h = size.y };
+            if (c.SDL_RenderCopy(self.renderer, texture, null, &dest_rect) != 0) sdl_panic("Copying texture to renderer");
+        }
         c.SDL_RenderPresent(self.renderer);
+    }
+
+    // Will also handle the case where the text is cached.
+    pub fn get_text_texture(self: *Window, text: *const Text) *c.SDL_Texture {
+        for (self.cached_textures_for_text.items) |t| {
+            if (t.text.contents == text.contents) return t.texture;
+        }
+
+        std.debug.print("Calculating texture...\n", .{});
+
+        const rw_ops = c.SDL_RWFromConstMem(font_file_content, font_file_content.len) orelse sdl_panic("Interpreting font");
+        const font: *c.TTF_Font = c.TTF_OpenFontRW(rw_ops, 1, text.font_size) orelse sdl_panic("Loading font");
+
+        const surface = c.TTF_RenderText_Shaded(font, @ptrCast(text.contents), text.font_color, .{ .a = 1, .r = 0, .g = 0, .b = 0 });
+        defer c.SDL_FreeSurface(surface);
+
+        const texture = c.SDL_CreateTextureFromSurface(self.renderer, surface) orelse {
+            sdl_panic("Creating text texture");
+        };
+
+        self.cached_textures_for_text.append(.{ .texture = texture, .text = text.* }) catch sdl_panic("Caching texture");
+
+        return texture;
     }
 };
 
 fn sdl_panic(base_msg: []const u8) noreturn {
-    std.debug.print("SDL panic detected.\n", .{});
     const message = c.SDL_GetError() orelse @panic("Unknown error in SDL.");
 
     var ptr: u32 = 0;
@@ -238,4 +279,9 @@ pub const HoverState = enum {
         if (hovering) return HoverState.Hover;
         return HoverState.None;
     }
+};
+
+const CachedTexture = struct {
+    texture: *c.SDL_Texture,
+    text: Text,
 };

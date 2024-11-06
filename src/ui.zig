@@ -1,3 +1,4 @@
+const c = @import("window.zig").c;
 const std = @import("std");
 const Simstate = @import("simstate.zig").Simstate;
 const Appstate = @import("appstate.zig").Appstate;
@@ -5,13 +6,24 @@ const Coordinate = @import("common.zig").Coordinate;
 const sim_to_camera_coord = @import("window.zig").sim_to_camera_coord;
 const camera_to_sim_coord = @import("window.zig").camera_to_sim_coord;
 const HoverState = @import("window.zig").HoverState;
+
+const SampleColors = .{
+    .White = c.SDL_Color{ .a = 255, .r = 255, .g = 255, .b = 255 },
+    .Black = c.SDL_Color{ .a = 255, .r = 0, .g = 0, .b = 0 },
+    .Red = c.SDL_Color{ .a = 255, .r = 255, .g = 0, .b = 0 },
+    .Green = c.SDL_Color{ .a = 255, .r = 0, .g = 255, .b = 0 },
+    .Blue = c.SDL_Color{ .a = 255, .r = 0, .g = 0, .b = 255 },
+};
+
 const simwidth = @import("simstate.zig").width;
 const simheight = @import("simstate.zig").height;
+
 pub fn generate_ui_with_size(width: comptime_int, height: comptime_int) type {
     return struct {
         pub fn update_ui(simstate: *Simstate, appstate: *Appstate, ui: *UI) void {
             var box_index: usize = 0;
             var button_index: usize = 0;
+            var text_index: usize = 0;
 
             for (simstate.obstacles.items) |obstacle| {
                 const upper_left = sim_to_camera_coord(appstate.zoom_level, appstate.window_pos, .{ .x = @intCast(obstacle.x), .y = @intCast(obstacle.y) });
@@ -68,8 +80,6 @@ pub fn generate_ui_with_size(width: comptime_int, height: comptime_int) type {
             box_index += 1;
             ui.box_count = box_index;
 
-            // Add pause button on the left!
-
             if (appstate.paused) {
                 ui.buttons[button_index] = PauseButton.init(
                     Box.init(
@@ -93,6 +103,7 @@ pub fn generate_ui_with_size(width: comptime_int, height: comptime_int) type {
                         appstate.button_states.is_holding_left_button,
                     ),
                 );
+                ui.texts[text_index] = Text.init(0, 0, "Continue", 20, SampleColors.White);
             } else {
                 ui.buttons[button_index] = PauseButton.init(
                     Box.init(
@@ -116,10 +127,13 @@ pub fn generate_ui_with_size(width: comptime_int, height: comptime_int) type {
                         appstate.button_states.is_holding_left_button,
                     ),
                 );
+                ui.texts[text_index] = Text.init(0, 0, "Pause", 20, SampleColors.White);
             }
 
+            text_index += 1;
             button_index += 1;
             ui.button_count = button_index;
+            ui.text_count = text_index;
         }
     };
 }
@@ -133,6 +147,8 @@ pub const UI = struct {
     box_count: usize = 0,
     buttons: [128]Button = undefined,
     button_count: usize = 0,
+    texts: [128]Text = undefined,
+    text_count: usize = 0,
 
     pub fn find_intersecting_button(self: *UI, x: i32, y: i32) ?*Button {
         for (self.buttons[0..self.button_count]) |*button| {
@@ -167,6 +183,24 @@ pub const Box = struct {
             .Pressed => pressed orelse hover orelse non_hover,
         };
         return Box{ .x = x, .y = y, .width = width, .height = height, .styling = styling };
+    }
+};
+
+pub const Text = struct {
+    x: i32,
+    y: i32,
+    contents: [*c]const u8,
+    font_size: u8,
+    font_color: c.SDL_Color,
+
+    pub fn init(x: i32, y: i32, contents: [*c]const u8, font_size: u8, font_color: c.SDL_Color) Text {
+        return Text{
+            .x = x,
+            .y = y,
+            .contents = contents,
+            .font_size = font_size,
+            .font_color = font_color,
+        };
     }
 };
 
