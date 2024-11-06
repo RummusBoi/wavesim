@@ -184,7 +184,7 @@ pub const Window = struct {
             const texture = self.get_text_texture(&text);
             if (c.SDL_QueryTexture(texture, null, null, &size.x, &size.y) != 0) sdl_panic("Querying texture for size");
             const dest_rect: c.SDL_Rect = .{ .x = text.x + 3, .y = text.y + 3, .w = size.x, .h = size.y };
-            if (c.SDL_RenderCopy(self.renderer, self.get_text_texture(&text), null, &dest_rect) != 0) sdl_panic("Copying texture to renderer");
+            if (c.SDL_RenderCopy(self.renderer, texture, null, &dest_rect) != 0) sdl_panic("Copying texture to renderer");
         }
         c.SDL_RenderPresent(self.renderer);
     }
