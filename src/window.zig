@@ -200,12 +200,6 @@ pub const Window = struct {
         const rw_ops = c.SDL_RWFromConstMem(font_file_content, font_file_content.len) orelse sdl_panic("Interpreting font");
         const font: *c.TTF_Font = c.TTF_OpenFontRW(rw_ops, 1, text.font_size) orelse sdl_panic("Loading font");
 
-        var w: c_int = undefined;
-        var h: c_int = undefined;
-
-        if (c.TTF_SizeText(font, text.contents, &w, &h) != 0) {
-            sdl_panic("Getting text size");
-        }
 
         const surface = c.TTF_RenderText_Shaded(font, @ptrCast(text.contents), text.font_color, .{ .a = 1, .r = 0, .g = 0, .b = 0 });
         defer c.SDL_FreeSurface(surface);
