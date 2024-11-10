@@ -92,7 +92,7 @@ pub fn main() !void {
         if (do_frame_prints) std.debug.print("Solve time: {}, sleep time: {}, solves: {}, solves / sec: {}\n", .{ end_solve_time - start_solve_time - sleep_time, sleep_time, solve_count, solve_count * target_fps });
         const start_present_time = std.time.milliTimestamp();
 
-        window.draw_simdata(solver.read_simdata(simdata_scratch), width, appstate.zoom_level, appstate.window_pos);
+        try window.draw_simdata(solver.read_simdata(simdata_scratch), width, appstate.zoom_level, appstate.window_pos);
         generate_ui(&simstate, &appstate, &ui);
         window.draw_ui(&ui);
 

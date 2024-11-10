@@ -1,5 +1,4 @@
 const std = @import("std");
-const zig_opencl = @import("zig_opencl");
 const cl = @import("zig_opencl");
 const kernel_source = @embedFile("kernel.cl");
 const Oscillator = @import("common.zig").Oscillator;
@@ -9,7 +8,6 @@ const Simstate = @import("simstate.zig").Simstate;
 const alloc_scratch = @import("simstate.zig").alloc_scratch;
 
 pub fn OpenCLSolverWithSize(width: u32, height: u32) type {
-    _ = zig_opencl;
     return struct {
         dt: f32,
         grid_spacing: f32,
@@ -49,7 +47,7 @@ pub fn OpenCLSolverWithSize(width: u32, height: u32) type {
             const platform, const device = found: for (platforms) |platform| {
                 const platform_name = try platform.getName(allocator);
 
-                const devices = try platform.getDevices(allocator, cl.DeviceType.all);
+                const devices = try platform.getDevices(allocator, cl.DeviceType.gpu_only);
                 for (devices) |device| {
                     const device_name = try device.getName(allocator);
 
