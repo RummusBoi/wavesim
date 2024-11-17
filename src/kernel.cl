@@ -7,11 +7,12 @@ struct Oscillator {
     int wavelength_count;
 };
 
-
 struct Coordinate {
     int x;
     int y;
 };
+
+
 
 kernel void wavesim(constant float* data, 
                     constant float* prev_data, 

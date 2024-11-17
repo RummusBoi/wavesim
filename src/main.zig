@@ -57,7 +57,7 @@ pub fn main() !void {
     const solves_per_frame: comptime_int = @intFromFloat(@as(comptime_float, (1000 / target_fps - estimated_present_time)) / estimated_solve_time); // sub 1 ms, as it takes roughly 1ms to show results
     var last_frame = std.time.milliTimestamp();
 
-    const simdata_scratch = simstate.alloc_scratch(f32, width * height);
+    // const simdata_scratch = simstate.alloc_scratch(f32, width * height);
     var appstate = Appstate{ .zoom_level = @max(@as(f32, @floatFromInt(width)) / WIDTH, @as(f32, @floatFromInt(height)) / HEIGHT) };
     var ui: UI = UI{};
     const do_frame_prints = false;
@@ -92,7 +92,8 @@ pub fn main() !void {
         if (do_frame_prints) std.debug.print("Solve time: {}, sleep time: {}, solves: {}, solves / sec: {}\n", .{ end_solve_time - start_solve_time - sleep_time, sleep_time, solve_count, solve_count * target_fps });
         const start_present_time = std.time.milliTimestamp();
 
-        window.draw_simdata(solver.read_simdata(simdata_scratch), width, appstate.zoom_level, appstate.window_pos);
+        // window.draw_simdata(solver.read_simdata(simdata_scratch), width, appstate.zoom_level, appstate.window_pos);
+        window.draw_simdata(solver.read_simdata(), width, appstate.zoom_level, appstate.window_pos);
         generate_ui(&simstate, &appstate, &ui);
         window.draw_ui(&ui);
 
