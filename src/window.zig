@@ -10,6 +10,7 @@ const Box = @import("ui.zig").Box;
 pub const std = @import("std");
 const Shader = @import("shader.zig");
 const Coordinate = @import("common.zig").Coordinate;
+const Shader = @import("shader.zig");
 pub const WIDTH = 1200;
 pub const HEIGHT = 800;
 pub const RENDERBUFFER_SIZE = HEIGHT * WIDTH;
@@ -23,19 +24,17 @@ const Color = struct {
     b: u8,
 };
 
-const Locale = struct {
-    left: f32,
-    right: f32,
-    up: f32,
-    down: f32,
-};
-
 pub const Window = struct {
     win: *c.SDL_Window,
     renderer: *c.SDL_Renderer,
     allocator: std.mem.Allocator,
     texture: *c.SDL_Texture,
+<<<<<<< HEAD
     shader: *Shader(),
+||||||| e3577a8
+=======
+    shader: Shader.OpenCLShader(),
+>>>>>>> 41e6897a954795800766ce67f6e22b61d4c2f2f4
 
     pub fn init(width: u32, height: u32, allocator: std.mem.Allocator) !Window {
         _ = c.SDL_Init(c.SDL_INIT_EVERYTHING);
@@ -58,16 +57,19 @@ pub const Window = struct {
             HEIGHT,
         ) orelse sdl_panic("Creating texture");
 
+        const shader = try Shader.OpenCLShader().init(allocator);
+
         return Window{
             .win = win,
             .renderer = renderer,
+            .shader = shader,
             .allocator = allocator,
             .texture = texture,
             .shader = try Shader.init(allocator),
         };
     }
 
-    pub fn draw_simdata(self: *Window, data: []const f32, stride: usize, zoom_level: f32, window_pos: Coordinate) void {
+    pub fn draw_simdata(self: *Window, data: []const f32, stride: usize, zoom_level: f32, window_pos: Coordinate) !void {
         var pixels: *[RENDERBUFFER_SIZE]u32 = undefined;
         var width: c_int = WIDTH;
         if (c.SDL_LockTexture(self.texture, null, @ptrCast(&pixels), &width) != 0) sdl_panic("Locking texture");
@@ -79,6 +81,7 @@ pub const Window = struct {
 
         // var mode: c.SDL_DisplayMode = undefined;
         // _ = c.SDL_GetWindowDisplayMode(self.win, &mode);
+<<<<<<< HEAD
         // for (1..@intCast(HEIGHT - 1)) |y| {
         //     for (1..@intCast(WIDTH - 1)) |x| {
         //         // Simulation data for points in the up, down, right, left directions.
@@ -134,9 +137,120 @@ pub const Window = struct {
         //         pixels[index] = 0 | r | g | b;
         //     }
         // }
+||||||| e3577a8
+        for (1..@intCast(HEIGHT - 1)) |y| {
+            for (1..@intCast(WIDTH - 1)) |x| {
+                // Simulation data for points in the up, down, right, left directions.
+                const simdata_up = camera_to_sim_coord(
+                    zoom_level,
+                    window_pos,
+                    .{ .x = @intCast(x), .y = @intCast(y - 1) },
+                );
+                const simdata_down = camera_to_sim_coord(
+                    zoom_level,
+                    window_pos,
+                    .{ .x = @intCast(x), .y = @intCast(y + 1) },
+                );
+                const simdata_left = camera_to_sim_coord(
+                    zoom_level,
+                    window_pos,
+                    .{ .x = @intCast(x - 1), .y = @intCast(y) },
+                );
+                const simdata_right = camera_to_sim_coord(
+                    zoom_level,
+                    window_pos,
+                    .{ .x = @intCast(x + 1), .y = @intCast(y) },
+                );
+
+                const up = get_simval(simdata_up, data, stride);
+                const down = get_simval(simdata_down, data, stride);
+                const left = get_simval(simdata_left, data, stride);
+                const right = get_simval(simdata_right, data, stride);
+
+                // This point.
+                const simdata_coords = camera_to_sim_coord(
+                    zoom_level,
+                    window_pos,
+                    .{ .x = @intCast(x), .y = @intCast(y) },
+                );
+
+                const simval = get_simval(simdata_coords, data, stride);
+
+                const locale = Locale{
+                    .up = up,
+                    .down = down,
+                    .left = left,
+                    .right = right,
+                };
+
+                const color: u32 = @intFromFloat(map_to_color(simval, locale));
+                const index = y * @as(usize, @intCast(WIDTH)) + x;
+
+                const r = @min((color + 80) << 16, 255 << 16);
+                const g = @min((color + 150) << 8, 255 << 8);
+                const b = 255;
+
+                pixels[index] = 0 | r | g | b;
+            }
+        }
+=======
+        for (1..@intCast(HEIGHT - 1)) |y| {
+            for (1..@intCast(WIDTH - 1)) |x| {
+
+                const up = get_simval(
+                    .{ .x = @intCast(x), .y = @intCast(y - 1) },
+                    data,
+                    stride
+                );
+                const down = get_simval(
+                    .{ .x = @intCast(x), .y = @intCast(y + 1) },
+                    data,
+                    stride
+                );
+                const left = get_simval(
+                    .{ .x = @intCast(x - 1), .y = @intCast(y) },
+                    data,
+                    stride
+                );
+                const right = get_simval(
+                    .{ .x = @intCast(x + 1), .y = @intCast(y) },
+                    data,
+                    stride
+                );
+
+                const simdata_here = camera_to_sim_coord(
+                    zoom_level,
+                    window_pos,
+                    .{ .x = @intCast(x), .y = @intCast(y) },
+                );
+
+                const here = get_simval(simdata_here, data, stride);
+
+                const locale = Shader.Locale{
+                    .up = up,
+                    .down = down,
+                    .left = left,
+                    .right = right,
+                    .here = here,
+                };
+
+                const color_float = try self.shader.shade(locale);
+
+                const color: u32 = @intFromFloat(color_float);
+                const index = y * @as(usize, @intCast(WIDTH)) + x;
+
+                const r = @min((color + 80) << 16, 255 << 16);
+                const g = @min((color + 150) << 8, 255 << 8);
+                const b = 255;
+
+                pixels[index] = 0 | r | g | b;
+            }
+        }
+>>>>>>> 41e6897a954795800766ce67f6e22b61d4c2f2f4
 
         c.SDL_UnlockTexture(self.texture);
     }
+
     fn draw_ui_box(self: *Window, box: Box) void {
         const styling = box.styling;
         if (styling.fill_color) |fill_color| {
@@ -278,93 +392,6 @@ fn get_simval(simdata_coords: Coordinate, data: []const f32, stride: usize) f32 
     else
         0;
 }
-
-fn cross_product(v1: Vector, v2: Vector) Vector {
-    return Vector{
-        .x = v1.y * v2.z - v1.z * v2.y,
-        .y = v1.z * v2.x - v1.x * v2.z,
-        .z = v1.x * v2.y - v1.y * v2.x,
-    };
-}
-
-fn norm(v: Vector) f32 {
-    return sqrt(pow(f32, v.x, 2) + pow(f32, v.y, 2) + pow(f32, v.z, 2));
-}
-
-// In degrees.
-fn angle(v1: Vector, v2: Vector) f32 {
-    const divisor = (norm(v1) * norm(v2));
-    const res = norm(cross_product(v1, v2)) / divisor;
-    return std.math.asin(res) * (180.0 / std.math.pi);
-}
-
-// Returns the angle of the normal vector to the z axis, with a few conditions:
-// - Returns 0 or 255 if angle < 0 or angle > 255.
-// - Returns sqrt(angle) if angle > 100.
-// - Else, returns angle.
-fn map_to_color(val: f32, locale: Locale) f32 {
-    const q = Vector{
-        .x = 0,
-        .y = 0,
-        .z = val,
-    };
-
-    const r = Vector{
-        .x = 0,
-        .y = 1,
-        .z = (locale.up - locale.down) / 2,
-    };
-
-    const s = Vector{
-        .x = 1,
-        .y = 0,
-        .z = (locale.right - locale.left) / 2,
-    };
-
-    const qr = Vector{
-        .x = r.x - q.x,
-        .y = r.y - q.y,
-        .z = r.z - q.z,
-    };
-
-    const qs = Vector{
-        .x = s.x - q.x,
-        .y = s.y - q.y,
-        .z = s.z - q.z,
-    };
-
-    const normal_vector = cross_product(qr, qs);
-    const z_axis = Vector{
-        .x = 0,
-        .y = 0,
-        .z = 1,
-    };
-
-    const angle_to_z_axis = angle(normal_vector, z_axis);
-
-    // If angle is 0, then it will be blue. Otherwise it will be gradually lighter.
-    if (angle_to_z_axis < 0) {
-        return 0.0;
-    }
-    if (angle_to_z_axis > 255) {
-        return 255.0;
-    }
-    if (angle_to_z_axis > 100) {
-        return pow(f32, angle_to_z_axis, 0.5);
-    }
-    return angle_to_z_axis;
-}
-
-pub const Vector = struct {
-    x: f32,
-    y: f32,
-    z: f32,
-};
-
-pub const Coordinates = struct {
-    x: i32,
-    y: i32,
-};
 
 pub fn camera_to_sim_coord(zoom_level: f32, window_pos: Coordinate, coords: Coordinate) Coordinate {
     const x_f: f32 = @floatFromInt(coords.x);
