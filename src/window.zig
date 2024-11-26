@@ -2,19 +2,33 @@ pub const c = @cImport({
     @cInclude("SDL2/SDL.h");
     @cInclude("SDL2/SDL_ttf.h");
 });
+
+const UI = @import("ui.zig").UI;
+const Appstate = @import("appstate.zig").Appstate;
+const Box = @import("ui.zig").Box;
+
 pub const std = @import("std");
+const Shader = @import("shader.zig");
 const Coordinate = @import("common.zig").Coordinate;
 pub const WIDTH = 1200;
 pub const HEIGHT = 800;
 pub const RENDERBUFFER_SIZE = HEIGHT * WIDTH;
-const UI = @import("ui.zig").UI;
-const Appstate = @import("appstate.zig").Appstate;
-const Box = @import("ui.zig").Box;
+
+const sqrt = std.math.sqrt;
+const pow = std.math.pow;
+
+const Color = struct {
+    r: u8,
+    g: u8,
+    b: u8,
+};
+
 pub const Window = struct {
     win: *c.SDL_Window,
     renderer: *c.SDL_Renderer,
     allocator: std.mem.Allocator,
     texture: *c.SDL_Texture,
+    shader: Shader.OpenCLShader(),
 
     pub fn init(width: u32, height: u32, allocator: std.mem.Allocator) !Window {
         _ = c.SDL_Init(c.SDL_INIT_EVERYTHING);
@@ -37,36 +51,88 @@ pub const Window = struct {
             HEIGHT,
         ) orelse sdl_panic("Creating texture");
 
+        const shader = try Shader.OpenCLShader().init(allocator);
+
         return Window{
             .win = win,
             .renderer = renderer,
             .allocator = allocator,
             .texture = texture,
+            .shader = shader,
         };
     }
 
-    pub fn draw_simdata(self: *Window, data: []const f32, stride: usize, zoom_level: f32, window_pos: Coordinate) void {
+    pub fn draw_simdata(self: *Window, data: []const f32, stride: usize, zoom_level: f32, window_pos: Coordinate) !void {
         var pixels: *[RENDERBUFFER_SIZE]u32 = undefined;
         var width: c_int = WIDTH;
         if (c.SDL_LockTexture(self.texture, null, @ptrCast(&pixels), &width) != 0) sdl_panic("Locking texture");
-        for (0..@intCast(HEIGHT)) |y| {
-            for (0..@intCast(WIDTH)) |x| {
-                const simdata_coords = camera_to_sim_coord(
-                    zoom_level,
-                    window_pos,
-                    .{ .x = @intCast(x), .y = @intCast(y) },
-                );
-                const simval = if (simdata_coords.x > 0 and simdata_coords.x < stride and simdata_coords.y > 0 and simdata_coords.y < data.len / stride) data[@as(usize, @intCast(simdata_coords.y)) * stride + @as(usize, @intCast(simdata_coords.x))] else 0;
-                const clamped = clamp_float(simval);
+        _ = stride;
+        _ = zoom_level;
+        _ = window_pos;
 
-                const color: u32 = @intFromFloat(clamped);
-                const index = y * @as(usize, @intCast(WIDTH)) + x;
-                pixels[index] = (color << 24) | (color << 16) | (color << 8) | color;
-            }
-        }
+        _ = try self.shader.shade(data, pixels);
+
+        // var mode: c.SDL_DisplayMode = undefined;
+        // _ = c.SDL_GetWindowDisplayMode(self.win, &mode);
+        // for (1..@intCast(HEIGHT - 1)) |y| {
+        //     for (1..@intCast(WIDTH - 1)) |x| {
+        //         // Simulation data for points in the up, down, right, left directions.
+        //         const simdata_up = camera_to_sim_coord(
+        //             zoom_level,
+        //             window_pos,
+        //             .{ .x = @intCast(x), .y = @intCast(y - 1) },
+        //         );
+        //         const simdata_down = camera_to_sim_coord(
+        //             zoom_level,
+        //             window_pos,
+        //             .{ .x = @intCast(x), .y = @intCast(y + 1) },
+        //         );
+        //         const simdata_left = camera_to_sim_coord(
+        //             zoom_level,
+        //             window_pos,
+        //             .{ .x = @intCast(x - 1), .y = @intCast(y) },
+        //         );
+        //         const simdata_right = camera_to_sim_coord(
+        //             zoom_level,
+        //             window_pos,
+        //             .{ .x = @intCast(x + 1), .y = @intCast(y) },
+        //         );
+        //
+        //         const up = get_simval(simdata_up, data, stride);
+        //         const down = get_simval(simdata_down, data, stride);
+        //         const left = get_simval(simdata_left, data, stride);
+        //         const right = get_simval(simdata_right, data, stride);
+        //
+        //         // This point.
+        //         const simdata_coords = camera_to_sim_coord(
+        //             zoom_level,
+        //             window_pos,
+        //             .{ .x = @intCast(x), .y = @intCast(y) },
+        //         );
+        //
+        //         const simval = get_simval(simdata_coords, data, stride);
+        //
+        //         const locale = Locale{
+        //             .up = up,
+        //             .down = down,
+        //             .left = left,
+        //             .right = right,
+        //         };
+        //
+        //         const color: u32 = @intFromFloat(map_to_color(simval, locale));
+        //         const index = y * @as(usize, @intCast(WIDTH)) + x;
+        //
+        //         const r = @min((color + 80) << 16, 255 << 16);
+        //         const g = @min((color + 150) << 8, 255 << 8);
+        //         const b = 255;
+        //
+        //         pixels[index] = 0 | r | g | b;
+        //     }
+        // }
 
         c.SDL_UnlockTexture(self.texture);
     }
+
     fn draw_ui_box(self: *Window, box: Box) void {
         const styling = box.styling;
         if (styling.fill_color) |fill_color| {
@@ -172,7 +238,7 @@ pub const Window = struct {
 };
 
 fn sdl_panic(base_msg: []const u8) noreturn {
-    std.debug.print("SDL panic detected.\n", .{});
+    // std.debug.print("SDL panic detected.\n", .{});
     const message = c.SDL_GetError() orelse @panic("Unknown error in SDL.");
 
     var ptr: u32 = 0;
@@ -192,6 +258,7 @@ fn sdl_panic(base_msg: []const u8) noreturn {
 
     @panic(&full_msg);
 }
+
 fn join_strs(s1: []const u8, s2: []const u8, buf: []u8) void {
     for (s1, 0..) |char, index| {
         buf[index] = char;
@@ -201,11 +268,11 @@ fn join_strs(s1: []const u8, s2: []const u8, buf: []u8) void {
     }
 }
 
-fn clamp_float(val: f32) f32 {
-    const v = val + 126.0;
-    if (v < 0) return 0.0;
-    if (v > 255) return 255.0;
-    return v;
+fn get_simval(simdata_coords: Coordinate, data: []const f32, stride: usize) f32 {
+    return if (simdata_coords.x > 0 and simdata_coords.x < stride and simdata_coords.y > 0 and simdata_coords.y < data.len / stride)
+        data[@as(usize, @intCast(simdata_coords.y)) * stride + @as(usize, @intCast(simdata_coords.x))]
+    else
+        0;
 }
 
 pub fn camera_to_sim_coord(zoom_level: f32, window_pos: Coordinate, coords: Coordinate) Coordinate {

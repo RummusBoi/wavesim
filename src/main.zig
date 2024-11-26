@@ -41,9 +41,11 @@ pub fn main() !void {
         _ = try simstate.create_oscillator(
             3500,
             oscillator_start + @as(u32, @intFromFloat((oscillator_end - oscillator_start) * i_f / oscillator_count_f)),
-            1000,
+            1,
             &[_]f32{
-                30,
+                60,
+                20,
+                100,
             },
         );
     }
@@ -63,10 +65,12 @@ pub fn main() !void {
         iter += 1;
 
         handle_events(&ui, &appstate, &simstate, &solver);
+
         if (appstate.updates.simstate) {
             solver.on_simstate_update(&simstate);
         }
         if (do_frame_prints) std.debug.print("\n\n --- Frame {} --- \n", .{iter});
+
         const target_frame_time: i64 = 1000 / target_fps;
         const start_solve_time = std.time.milliTimestamp();
         var solve_count: u32 = 0;
@@ -81,12 +85,15 @@ pub fn main() !void {
         } else {
             sleep_time = target_frame_time - @as(i64, estimated_present_time);
         }
+
         c.SDL_Delay(@intCast(sleep_time));
         const end_solve_time = std.time.milliTimestamp();
+
         if (do_frame_prints) std.debug.print("Solve time: {}, sleep time: {}, solves: {}, solves / sec: {}\n", .{ end_solve_time - start_solve_time - sleep_time, sleep_time, solve_count, solve_count * target_fps });
         const start_present_time = std.time.milliTimestamp();
 
-        window.draw_simdata(solver.read_simdata(simdata_scratch), width, appstate.zoom_level, appstate.window_pos);
+        try window.draw_simdata(solver.read_simdata(simdata_scratch), width, appstate.zoom_level, appstate.window_pos);
+
         generate_ui(&simstate, &appstate, &ui);
         window.draw_ui(&ui);
 
@@ -96,6 +103,8 @@ pub fn main() !void {
         if (do_frame_prints) std.debug.print("Present time: {}\n", .{end_present_time - start_present_time});
         const elapsed = std.time.milliTimestamp() - last_frame;
         if (do_frame_prints) std.debug.print("TOTAL Frame time: {}\n", .{elapsed});
+
         last_frame = std.time.milliTimestamp();
+        // c.SDL_Delay(100);
     }
 }

@@ -12,6 +12,7 @@ pub fn handle_events_with_size(width: comptime_int, height: comptime_int) type {
             var event: c.SDL_Event = undefined;
             appstate.updates = .{ .simstate = false };
             const simdata_scratch = simstate.alloc_scratch(f32, width * height);
+            const scroll_sensitivity = 2;
             if (appstate.button_states.is_holding_up) {
                 appstate.window_pos.y -= @intFromFloat(10 * appstate.zoom_level * appstate.ui_movement_scalor);
             }
@@ -24,7 +25,7 @@ pub fn handle_events_with_size(width: comptime_int, height: comptime_int) type {
             if (appstate.button_states.is_holding_right) {
                 appstate.window_pos.x += @intFromFloat(10 * appstate.zoom_level * appstate.ui_movement_scalor);
             }
-            if (appstate.button_states.is_holding_zoom_in) {
+            if (appstate.button_states.held_zoom_button_counter > 0) {
                 appstate.zoom_level *= 1 - (0.02 * appstate.ui_movement_scalor);
             }
             if (appstate.button_states.is_holding_zoom_out) {
@@ -83,8 +84,8 @@ pub fn handle_events_with_size(width: comptime_int, height: comptime_int) type {
                         const norm_scaled = pow(f32, @as(f32, norm), 1.5);
                         const norms_ratio = norm_scaled / norm;
 
-                        appstate.window_pos.x += @intFromFloat(x * norms_ratio * 2 * appstate.zoom_level);
-                        appstate.window_pos.y -= @intFromFloat(y * norms_ratio * 2 * appstate.zoom_level);
+                        appstate.window_pos.x += @intFromFloat(x * norms_ratio * scroll_sensitivity * appstate.zoom_level);
+                        appstate.window_pos.y -= @intFromFloat(y * norms_ratio * scroll_sensitivity * appstate.zoom_level);
                     },
                     c.SDL_KEYDOWN => {
                         const scancode = event.key.keysym.scancode;
@@ -104,9 +105,13 @@ pub fn handle_events_with_size(width: comptime_int, height: comptime_int) type {
                         if (scancode == c.SDL_SCANCODE_DOWN) {
                             appstate.button_states.is_holding_down = true;
                         }
-
                         if (event.key.keysym.sym == c.SDLK_PLUS) {
-                            appstate.button_states.is_holding_zoom_in = true;
+                            appstate.button_states.held_zoom_button_counter =
+                                appstate.button_states.held_zoom_button_counter | 1;
+                        }
+                        if (event.key.keysym.sym == c.SDLK_EQUALS) {
+                            appstate.button_states.held_zoom_button_counter =
+                                appstate.button_states.held_zoom_button_counter | 2;
                         }
                         if (event.key.keysym.sym == c.SDLK_MINUS) {
                             appstate.button_states.is_holding_zoom_out = true;
@@ -121,6 +126,14 @@ pub fn handle_events_with_size(width: comptime_int, height: comptime_int) type {
                     c.SDL_KEYUP => {
                         const scancode = event.key.keysym.scancode;
 
+                        if (event.key.keysym.sym == c.SDLK_PLUS) {
+                            appstate.button_states.held_zoom_button_counter =
+                                appstate.button_states.held_zoom_button_counter ^ 1;
+                        }
+                        if (event.key.keysym.sym == c.SDLK_EQUALS) {
+                            appstate.button_states.held_zoom_button_counter =
+                                appstate.button_states.held_zoom_button_counter ^ 2;
+                        }
                         if (scancode == c.SDL_SCANCODE_LEFT) {
                             appstate.button_states.is_holding_left = false;
                         }
@@ -132,9 +145,6 @@ pub fn handle_events_with_size(width: comptime_int, height: comptime_int) type {
                         }
                         if (scancode == c.SDL_SCANCODE_DOWN) {
                             appstate.button_states.is_holding_down = false;
-                        }
-                        if (event.key.keysym.sym == c.SDLK_PLUS) {
-                            appstate.button_states.is_holding_zoom_in = false;
                         }
                         if (event.key.keysym.sym == c.SDLK_MINUS) {
                             appstate.button_states.is_holding_zoom_out = false;
