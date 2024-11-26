@@ -77,19 +77,20 @@ pub fn OpenCLShader() type {
             };
         }
 
-        pub fn shade(self: *@This(), simdata: []const u8, to_draw: []u8) !f32 {
+        pub fn shade(self: *@This(), simdata: []const f32, to_draw: []u32) !f32 {
 
             // Args: the simulation state from which to shade from, and a buffer to draw to.
-            try self.kernel.setArg(@TypeOf(simdata), 0, &simdata);
-            try self.kernel.setArg(@TypeOf(to_draw), 1, &to_draw);
+            try self.kernel.setArg(@TypeOf(simdata), 0, simdata);
+            try self.kernel.setArg(@TypeOf(to_draw), 1, to_draw);
 
-            self.queue.enqueueNDRangeKernel(
+            const kernel_event = try self.queue.enqueueNDRangeKernel(
                 self.kernel,
                 null,
                 &.{ WIDTH, HEIGHT },
                 null,
                 &.{},
             );
+            _ = kernel_event;
 
             return 1.0;
         }

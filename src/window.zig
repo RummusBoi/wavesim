@@ -10,7 +10,6 @@ const Box = @import("ui.zig").Box;
 pub const std = @import("std");
 const Shader = @import("shader.zig");
 const Coordinate = @import("common.zig").Coordinate;
-const Shader = @import("shader.zig");
 pub const WIDTH = 1200;
 pub const HEIGHT = 800;
 pub const RENDERBUFFER_SIZE = HEIGHT * WIDTH;
@@ -29,12 +28,7 @@ pub const Window = struct {
     renderer: *c.SDL_Renderer,
     allocator: std.mem.Allocator,
     texture: *c.SDL_Texture,
-<<<<<<< HEAD
-    shader: *Shader(),
-||||||| e3577a8
-=======
     shader: Shader.OpenCLShader(),
->>>>>>> 41e6897a954795800766ce67f6e22b61d4c2f2f4
 
     pub fn init(width: u32, height: u32, allocator: std.mem.Allocator) !Window {
         _ = c.SDL_Init(c.SDL_INIT_EVERYTHING);
@@ -62,10 +56,9 @@ pub const Window = struct {
         return Window{
             .win = win,
             .renderer = renderer,
-            .shader = shader,
             .allocator = allocator,
             .texture = texture,
-            .shader = try Shader.init(allocator),
+            .shader = shader,
         };
     }
 
@@ -77,11 +70,10 @@ pub const Window = struct {
         _ = zoom_level;
         _ = window_pos;
 
-        self.shader.shade(data, pixels);
+        _ = try self.shader.shade(data, pixels);
 
         // var mode: c.SDL_DisplayMode = undefined;
         // _ = c.SDL_GetWindowDisplayMode(self.win, &mode);
-<<<<<<< HEAD
         // for (1..@intCast(HEIGHT - 1)) |y| {
         //     for (1..@intCast(WIDTH - 1)) |x| {
         //         // Simulation data for points in the up, down, right, left directions.
@@ -137,116 +129,6 @@ pub const Window = struct {
         //         pixels[index] = 0 | r | g | b;
         //     }
         // }
-||||||| e3577a8
-        for (1..@intCast(HEIGHT - 1)) |y| {
-            for (1..@intCast(WIDTH - 1)) |x| {
-                // Simulation data for points in the up, down, right, left directions.
-                const simdata_up = camera_to_sim_coord(
-                    zoom_level,
-                    window_pos,
-                    .{ .x = @intCast(x), .y = @intCast(y - 1) },
-                );
-                const simdata_down = camera_to_sim_coord(
-                    zoom_level,
-                    window_pos,
-                    .{ .x = @intCast(x), .y = @intCast(y + 1) },
-                );
-                const simdata_left = camera_to_sim_coord(
-                    zoom_level,
-                    window_pos,
-                    .{ .x = @intCast(x - 1), .y = @intCast(y) },
-                );
-                const simdata_right = camera_to_sim_coord(
-                    zoom_level,
-                    window_pos,
-                    .{ .x = @intCast(x + 1), .y = @intCast(y) },
-                );
-
-                const up = get_simval(simdata_up, data, stride);
-                const down = get_simval(simdata_down, data, stride);
-                const left = get_simval(simdata_left, data, stride);
-                const right = get_simval(simdata_right, data, stride);
-
-                // This point.
-                const simdata_coords = camera_to_sim_coord(
-                    zoom_level,
-                    window_pos,
-                    .{ .x = @intCast(x), .y = @intCast(y) },
-                );
-
-                const simval = get_simval(simdata_coords, data, stride);
-
-                const locale = Locale{
-                    .up = up,
-                    .down = down,
-                    .left = left,
-                    .right = right,
-                };
-
-                const color: u32 = @intFromFloat(map_to_color(simval, locale));
-                const index = y * @as(usize, @intCast(WIDTH)) + x;
-
-                const r = @min((color + 80) << 16, 255 << 16);
-                const g = @min((color + 150) << 8, 255 << 8);
-                const b = 255;
-
-                pixels[index] = 0 | r | g | b;
-            }
-        }
-=======
-        for (1..@intCast(HEIGHT - 1)) |y| {
-            for (1..@intCast(WIDTH - 1)) |x| {
-
-                const up = get_simval(
-                    .{ .x = @intCast(x), .y = @intCast(y - 1) },
-                    data,
-                    stride
-                );
-                const down = get_simval(
-                    .{ .x = @intCast(x), .y = @intCast(y + 1) },
-                    data,
-                    stride
-                );
-                const left = get_simval(
-                    .{ .x = @intCast(x - 1), .y = @intCast(y) },
-                    data,
-                    stride
-                );
-                const right = get_simval(
-                    .{ .x = @intCast(x + 1), .y = @intCast(y) },
-                    data,
-                    stride
-                );
-
-                const simdata_here = camera_to_sim_coord(
-                    zoom_level,
-                    window_pos,
-                    .{ .x = @intCast(x), .y = @intCast(y) },
-                );
-
-                const here = get_simval(simdata_here, data, stride);
-
-                const locale = Shader.Locale{
-                    .up = up,
-                    .down = down,
-                    .left = left,
-                    .right = right,
-                    .here = here,
-                };
-
-                const color_float = try self.shader.shade(locale);
-
-                const color: u32 = @intFromFloat(color_float);
-                const index = y * @as(usize, @intCast(WIDTH)) + x;
-
-                const r = @min((color + 80) << 16, 255 << 16);
-                const g = @min((color + 150) << 8, 255 << 8);
-                const b = 255;
-
-                pixels[index] = 0 | r | g | b;
-            }
-        }
->>>>>>> 41e6897a954795800766ce67f6e22b61d4c2f2f4
 
         c.SDL_UnlockTexture(self.texture);
     }
